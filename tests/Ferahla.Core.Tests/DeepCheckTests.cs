@@ -10,6 +10,8 @@ public sealed class VerifierTests : IDisposable
     private readonly TempTree _t = new();
     public void Dispose() => _t.Dispose();
 
+    private static VerifyResult V(Finding f) => Verifier.Verify(f, TestContext.Current.CancellationToken);
+
     private static Finding Dup(string kept, params string[] copies) => new()
     {
         Id = "f-0000000001", Category = "duplicate", Title = "dup",
@@ -23,11 +25,11 @@ public sealed class VerifierTests : IDisposable
         var data = Encoding.UTF8.GetBytes(new string('x', 3_000_000));
         var kept = _t.P("a.bin"); File.WriteAllBytes(kept, data);
         var copy = _t.P("a (1).bin"); File.WriteAllBytes(copy, data);
-        Assert.True(Verifier.Verify(Dup(kept, copy)).Ok);
+        Assert.True(V(Dup(kept, copy)).Ok);
 
         data[2_500_000] = (byte)'y'; // the middle, where head/tail probes don't look
         File.WriteAllBytes(copy, data);
-        var r = Verifier.Verify(Dup(kept, copy));
+        var r = V(Dup(kept, copy));
         Assert.False(r.Ok);
         Assert.Contains(r.Checks, c => c.Contains("DIFFERENT") || c.Contains("FARKLI"));
     }
@@ -36,7 +38,7 @@ public sealed class VerifierTests : IDisposable
     public void Missing_kept_copy_fails()
     {
         var copy = _t.File("b (1).bin", 10);
-        Assert.False(Verifier.Verify(Dup(_t.P("gone.bin"), copy)).Ok);
+        Assert.False(V(Dup(_t.P("gone.bin"), copy)).Ok);
     }
 
     [Fact]
@@ -50,12 +52,12 @@ public sealed class VerifierTests : IDisposable
         ZipFile.CreateFromDirectory(folder, zip);
         var f = new Finding { Id = "f-0000000002", Category = "archive", Title = "zip", Items = [new() { Path = zip, Bytes = new FileInfo(zip).Length }] };
 
-        var ok = Verifier.Verify(f);
+        var ok = V(f);
         Assert.True(ok.Ok);
         Assert.Contains(ok.Checks, c => c.Contains("2/2") || c.Contains("2 tanesi"));
 
         File.WriteAllText(Path.Combine(folder, "one.txt"), "first filE"); // same length, different content
-        Assert.False(Verifier.Verify(f).Ok);
+        Assert.False(V(f).Ok);
     }
 
     [Fact]
@@ -85,6 +87,28 @@ public class SystemActionTests
         var rules = Rules.RuleLoader.LoadBuiltIn(includePending: true);
         Assert.DoesNotContain(rules.Rules, r => (r.Command ?? "").Contains("ResetBase", StringComparison.OrdinalIgnoreCase));
     }
+}
+
+public class UserAreaTests
+{
+    private static readonly Windows.Scanning.FileClassifier C = new(new Dictionary<string, string>
+    {
+        ["UserProfile"] = @"C:\Users\user", ["LocalAppData"] = @"C:\Users\user\AppData\Local", ["AppData"] = @"C:\Users\user\AppData\Roaming",
+        ["Windows"] = @"C:\Windows", ["ProgramFiles"] = @"C:\Program Files", ["ProgramData"] = @"C:\ProgramData",
+    }, 50L << 20);
+
+    [Theory]
+    [InlineData(@"C:\Users\user\Downloads", true)]
+    [InlineData(@"D:\Downloads\packs", true)]       // the user's files on another drive
+    [InlineData(@"C:\Projects\app", true)]
+    [InlineData(@"C:\Users\user\AppData\Local\x", false)]
+    [InlineData(@"C:\Users\user\.cache", false)]
+    [InlineData(@"C:\Users\public\Downloads", false)] // the shared profile, not the user's own
+    [InlineData(@"C:\Windows\Temp", false)]
+    [InlineData(@"C:\Program Files\App", false)]
+    [InlineData(@"D:\$Recycle.Bin\S-1", false)]
+    public void User_area(string path, bool expected) =>
+        Assert.Equal(expected, (C.ContextFor(path, null) & Windows.Scanning.PathContext.UserArea) != 0);
 }
 
 public class UninstallStringTests

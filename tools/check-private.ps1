@@ -41,16 +41,19 @@ Add-Check 'secret-looking value'  '(?i)(sk-ant-[a-z0-9-]{10,}|\bsk-[a-z0-9_-]{20
 Add-Check 'secret assignment'     '(?i)\b(password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\s*[:=]\s*["'']?[^\s"''<>{}$]{8,}'
 Add-Check 'real scan report file' '(?i)disk-raporu-\d{4}-\d\d-\d\d\.json'
 
-# The repo's own public GitHub address (owner/name from the origin remote) and the commit author name
+# The repo's own public GitHub address and owner handle (from the origin remote) and the commit author name
 # (LICENSE copyright line) are public by design. Read at run time so no handle or name is written here.
 $publicRepo = $null
 $origin = git remote get-url origin 2>$null
-if ($origin -match 'github\.com[:/]([^/]+/[^/.]+)') { $publicRepo = 'github.com/' + $Matches[1] }
+$publicOwner = $null
+if ($origin -match 'github\.com[:/](([^/]+)/[^/.]+)') { $publicRepo = 'github.com/' + $Matches[1]; $publicOwner = $Matches[2] }
 $authorName = git config user.name 2>$null
 
 $found = 0
 function Test-Line([string]$where, [string]$line) {
     if ($publicRepo) { $line = [regex]::Replace($line, [regex]::Escape($publicRepo), '<repo>', 'IgnoreCase') }
+    # The owner's GitHub handle is public (repo URL, winget id BerkayCaglar.Ferahla style); a local name inside it is not a leak.
+    if ($publicOwner) { $line = [regex]::Replace($line, [regex]::Escape($publicOwner), '<owner>', 'IgnoreCase') }
     if ($authorName) { $line = [regex]::Replace($line, [regex]::Escape($authorName), '<author>', 'IgnoreCase, CultureInvariant') }
     foreach ($c in $checks) {
         $ms = [regex]::Matches($line, $c.Regex)

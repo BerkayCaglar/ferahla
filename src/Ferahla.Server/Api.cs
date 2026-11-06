@@ -25,6 +25,9 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
 {
     private static readonly string Version = typeof(Api).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
+    /// <summary>FERAHLA_DEMO=1: nothing from this machine (drives, apps) is shown; used for README screenshots.</summary>
+    private static bool Demo => Environment.GetEnvironmentVariable("FERAHLA_DEMO") == "1";
+
     public void Map(IEndpointRouteBuilder app)
     {
         app.MapGet("/api/ping", ctx => Json(ctx, new OkDto(), ApiJson.Web.OkDto));
@@ -79,7 +82,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         {
             Snapshot? snap = null;
             try { snap = state.Scan(ctx.Request.Query["scan"]).Snap; } catch (FileNotFoundException) { }
-            var apps = await Task.Run(() => AppsService.List(snap));
+            var apps = Demo ? new List<AppEntry>() : await Task.Run(() => AppsService.List(snap));
             await Json(ctx, apps, ApiJson.Web.ListAppEntry);
         }));
         app.MapPost("/api/apps/uninstall", ctx => Body(ctx, ApiJson.Web.IdRequest, r =>
@@ -123,6 +126,17 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
             Version = Version, Lang = Lang.Current, Scans = state.Store.ListMeta(), Job = jobs.Current,
             DefaultRoot = known.GetValueOrDefault("SystemDrive"),
         };
+        if (Demo)
+        {
+            // Screenshots for the README: drives come from the (invented) demo scans, not from this machine.
+            foreach (var g in s.Scans.GroupBy(x => x.Root[..3].ToUpperInvariant()))
+            {
+                var m = g.First();
+                s.Drives.Add(new DriveDto { Root = g.Key, Format = "NTFS", Type = "fixed", TotalBytes = m.TotalBytes, FreeBytes = m.FreeBytes, IsSystem = true, CanQuarantine = true });
+            }
+            s.DefaultRoot = s.Drives.FirstOrDefault()?.Root;
+            return s;
+        }
         foreach (var d in DriveInfo.GetDrives())
         {
             if (d.DriveType is not (DriveType.Fixed or DriveType.Removable)) continue;

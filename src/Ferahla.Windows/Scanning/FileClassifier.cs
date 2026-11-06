@@ -45,8 +45,24 @@ public sealed class FileClassifier(IReadOnlyDictionary<string, string> known, lo
             var dotFolder = !inAppData && IsDotFolderBelowProfile(path);
             if (!inAppData && !dotFolder) c |= PathContext.UserArea;
         }
+        // Outside the profile (other drives, D:\Downloads, D:\Projects) everything but system and program folders is the
+        // user's own, as in DetectorContext.IsUserArea.
+        else if (!_system.Any(s => PathUtil.IsUnder(path, s)) && !IsSystemRootFolder(path)) c |= PathContext.UserArea;
         if (_dlDesk.Any(d => PathUtil.IsUnder(path, d))) c |= PathContext.DownloadsOrDesktop;
         return c;
+    }
+
+    private readonly string[] _system = new[] { Get(known, "Windows"), Get(known, "ProgramFiles"), Get(known, "ProgramFilesX86"), Get(known, "ProgramData") }
+        .OfType<string>().ToArray();
+
+    private static bool IsSystemRootFolder(string path)
+    {
+        var n = PathUtil.Normalize(path);
+        if (n.Length <= 3) return false;
+        var i = n.IndexOf('\\', 3);
+        var first = i < 0 ? n[3..] : n[3..i];
+        return first.StartsWith('$') || first.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)
+               || first.Equals("Recovery", StringComparison.OrdinalIgnoreCase) || first.Equals("Users", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsDotFolderBelowProfile(string path)

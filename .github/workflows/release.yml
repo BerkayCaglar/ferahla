@@ -1,0 +1,70 @@
+name: release
+
+# Push a tag like v1.0.0 to build ferahla.exe in CI and attach it, with its SHA-256, to a DRAFT release.
+# Publishing the draft is a manual step on GitHub. Binaries are never built or uploaded from a developer machine.
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Put vswhere on PATH (NativeAOT link step needs it)
+        shell: pwsh
+        run: Add-Content $env:GITHUB_PATH "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+
+      - name: Version from the tag
+        id: v
+        shell: pwsh
+        run: |
+          $v = '${{ github.ref_name }}'.TrimStart('v')
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { throw "tag must be vMAJOR.MINOR.PATCH" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Privacy check
+        shell: pwsh
+        run: ./tools/check-private.ps1 -All
+
+      - name: Check web code
+        run: node tools/check-web.mjs
+
+      - name: Test
+        run: dotnet test --solution Ferahla.slnx -c Release
+
+      - name: Publish (NativeAOT, win-x64)
+        run: dotnet publish src/Ferahla -c Release -o publish -p:Version=${{ steps.v.outputs.version }}
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash publish/ferahla.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$h  ferahla.exe" | Set-Content -Encoding ascii publish/ferahla.exe.sha256
+          Get-Content publish/ferahla.exe.sha256
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $env:FERAHLA_HOME = "$env:RUNNER_TEMP\ferahla-home"
+          $out = ./publish/ferahla.exe --version
+          if ($out -notmatch '${{ steps.v.outputs.version }}') { throw "version mismatch: $out" }
+          ./publish/ferahla.exe scan "$env:RUNNER_TEMP" --json | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create '${{ github.ref_name }}' publish/ferahla.exe publish/ferahla.exe.sha256 `
+            --draft --verify-tag --title 'Ferahla ${{ steps.v.outputs.version }}' --notes-file docs/release-notes.md

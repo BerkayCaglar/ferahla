@@ -4,8 +4,13 @@
 
 [English](README.md)
 
-> **Durum: erken geliştirme.** Ferahla bir sürücüyü tarar, bulduklarını açıklar ve seçtiklerini geri alınabilir bir
-> karantinaya taşır; tarayıcı penceresinden ya da komut satırından. Henüz sürüm yok: kaynaktan derle.
+![Ferahla genel bakış: boş alan, riske göre boşaltılabilecek yer, yerin nereye gittiği ve neyin değiştiği](docs/img/overview.png)
+
+## İndir
+
+`ferahla.exe`'yi [Releases](https://github.com/BerkayCaglar/ferahla/releases) sayfasından al: tek dosya, kurulum yok,
+.NET gerekmez. Windows 10 1809+ ya da 11 (x64). Çift tıkla, tarayıcında açılır. Her sürümde dosyanın SHA-256'sı
+yazar; dosyalar sadece bu reponun [sürüm iş akışıyla](.github/workflows/release.yml) derlenir.
 
 Çoğu disk temizleyici büyük klasörleri gösterir, gerisi sana kalır. Ferahla her öneri için şunu söyler:
 
@@ -38,6 +43,12 @@ Kurallar [`rules/`](rules) altında JSON olarak, İngilizce ve Türkçe metinler
 
 `ferahla` komutunu çalıştır (ya da `ferahla.exe`'ye çift tıkla), tarayıcında açılır: genel bakış, işaretleyeceğin
 öneriler, treemap'li klasör gezgini, büyük dosyalar, uygulamalar ve oyunlar, karantina, geçmiş ve isteğe bağlı Claude analizi. Açık ve koyu tema, Türkçe ve İngilizce.
+
+| Öneriler | Gezgin |
+|---|---|
+| ![Riske göre gruplanmış öneriler, kanıtlar ve karantina çubuğu](docs/img/suggestions.png) | ![Treemap ve klasör boyutlarıyla gezgin](docs/img/explorer.png) |
+
+Ekran görüntüleri gerçek bir disk değil, uydurma bir demo klasörü gösteriyor (`tools/demo/make-demo.ps1`).
 
 Pencere, `ferahla.exe`'nin kendisinin sunduğu ve sadece `127.0.0.1` üzerinde çalışan yerel bir sayfadır. Her açılışta
 sadece o sekmeye verilen rastgele bir anahtar üretilir; diğer sitelerden gelen istekler reddedilir (host, origin ve
@@ -118,6 +129,13 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~5 MB 
 ## Yol haritası
 
 1. Cila ve ilk sürüm (imzalı dosyalar, winget)
+
+## Daha fazlası
+
+- [SECURITY.md](SECURITY.md): dosyaların ve yerel pencere nasıl korunuyor; güvenlik açığı bildirme
+- [docs/privacy.md](docs/privacy.md): Ferahla neyi saklar, analiz kullanırsan Claude neyi görür
+- [CONTRIBUTING.md](CONTRIBUTING.md) ve [docs/rules.md](docs/rules.md): kural ekleme, derleme, test
+- [docs/architecture.md](docs/architecture.md), [docs/spikes.md](docs/spikes.md): nasıl yapıldı ve neden
 
 ## Lisans
 

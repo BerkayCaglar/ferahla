@@ -4,8 +4,13 @@
 
 [Türkçe](README.tr.md)
 
-> **Status: early development.** Ferahla scans a drive, explains what it finds, and moves what you select into an
-> undoable quarantine, from its browser window or the command line. There are no releases yet: build from source.
+![Ferahla's overview: free space, what can be freed by risk, where the space goes and what changed](docs/img/overview.png)
+
+## Download
+
+Get `ferahla.exe` from [Releases](https://github.com/BerkayCaglar/ferahla/releases): one file, no installer, no .NET
+needed. Windows 10 1809+ or 11 (x64). Double-click it and it opens in your browser. Each release lists the file's
+SHA-256; the binaries are built only by this repository's [release workflow](.github/workflows/release.yml).
 
 Most disk cleaners show you big folders, and the rest is up to you. Ferahla tells you for each suggestion:
 
@@ -38,6 +43,12 @@ Rules live in [`rules/`](rules) as JSON, with English and Turkish texts.
 
 Run `ferahla` (or double-click `ferahla.exe`) and it opens in your browser: overview, suggestions to tick, a folder
 explorer with a treemap, large files, apps and games, quarantine, history and an optional Claude analysis. Light and dark, English and Turkish.
+
+| Suggestions | Explorer |
+|---|---|
+| ![Suggestions grouped by risk, with evidence and the quarantine bar](docs/img/suggestions.png) | ![Explorer with a treemap and folder sizes](docs/img/explorer.png) |
+
+The screenshots show an invented demo folder (`tools/demo/make-demo.ps1`), not a real disk.
 
 The window is a local page served by `ferahla.exe` itself, on `127.0.0.1` only. Every launch makes a random key that
 only that browser tab gets, and requests from other sites are refused (host, origin and fetch-metadata checks), so a
@@ -115,6 +126,13 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a sing
 ## Roadmap
 
 1. Polish and the first release (signed binaries, winget)
+
+## More
+
+- [SECURITY.md](SECURITY.md): how your files and the local window are protected; reporting a vulnerability
+- [docs/privacy.md](docs/privacy.md): what Ferahla stores, and what Claude sees if you use the analysis
+- [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/rules.md](docs/rules.md): adding rules, building, testing
+- [docs/architecture.md](docs/architecture.md), [docs/spikes.md](docs/spikes.md): how it is built and why
 
 ## License
 
