@@ -17,6 +17,7 @@
     <ProjectReference Include="..\Ferahla.Core\Ferahla.Core.csproj" />
     <ProjectReference Include="..\Ferahla.Windows\Ferahla.Windows.csproj" />
     <ProjectReference Include="..\Ferahla.Server\Ferahla.Server.csproj" />
+    <ProjectReference Include="..\Ferahla.Mcp\Ferahla.Mcp.csproj" />
   </ItemGroup>
 
 </Project>

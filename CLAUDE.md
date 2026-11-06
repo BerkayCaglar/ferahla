@@ -1,6 +1,6 @@
 # Ferahla: notes for Claude sessions
 
-Ferahla is an open-source Windows disk scanner and safe-cleanup tool: one NativeAOT exe (.NET 10) that serves a local web UI, a CLI and an MCP server. Done: M0 spikes (results in `docs/spikes.md`), M1 (scan, rules, findings, report), M2a (quarantine CLI), M2b (local server + UI). Next: M3 (Claude analysis over MCP), then M4 deep checks, a UI polish pass, M5 release.
+Ferahla is an open-source Windows disk scanner and safe-cleanup tool: one NativeAOT exe (.NET 10) that serves a local web UI, a CLI and an MCP server. Done: M0 spikes (results in `docs/spikes.md`), M1 (scan, rules, findings, report), M2a (quarantine CLI), M2b (local server + UI), M3 (Claude analysis over MCP). Next: M4 deep checks, a UI polish pass, M5 release.
 
 ## Privacy: nothing about the owner goes into this repo
 
@@ -42,6 +42,14 @@ This repo is public. The tool is developed against the owner's real machine and 
   CSP); `ServerTests.cs` pins each rule, keep them green. Handlers are plain `RequestDelegate`s with the `ApiJson`
   source-generated context (no minimal-API reflection). One job at a time (`Jobs`), progress over SSE (`EventHub`).
   `FindingsService`, `ScanService` and `PlanRunner` in Ferahla.Windows are shared by the CLI and the server.
+- Claude analysis: `src/Ferahla.Mcp/` is `ferahla mcp` (official C# MCP SDK, stdio; read-only tools + `add_note`, never
+  a tool that moves or deletes). `Server/Analysis.cs` runs `claude -p` isolated (`--tools "" --strict-mcp-config
+  --setting-sources "" --permission-prompts none`, neutral `claude-work` folder, job object, `ANTHROPIC_API_KEY`
+  removed) and stops if the init event lists any non-Ferahla tool. `Core/Claude/StreamParser.cs` turns stream-json into
+  UI events (tested against `tests/fixtures/claude/`). Notes live in `<home>\notes\notes.json` (`Core/Notes`), keyed by
+  the stable finding id. `prompts/analyze.{en,tr}.md` are embedded with `WithCulture="false"` (otherwise MSBuild puts
+  the `.tr.md` into a satellite assembly). Don't run real analyses casually: they spend the owner's Claude plan; use
+  the fixtures and `--model haiku` when a real run is unavoidable.
 - `web/`: the UI, embedded into the exe (no build step): `index.html`, `css/app.css` (design tokens, light/dark),
   `js/` ES modules (`app.js` shell + router, `store.js`, `api.js`, `ui.js`, `i18n.js` with en+tr, `views/*`). CSP has
   no `unsafe-inline`: never use inline `style`/`on*` attributes or innerHTML; set styles through the CSSOM.

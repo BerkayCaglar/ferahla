@@ -571,6 +571,39 @@ button.bar-row:hover { background: var(--surface-2); }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
 .chart .pt { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 
+/* ---------- Claude analysis ---------- */
+
+.small { font-size: 12px; }
+.stack.tight { gap: 14px; }
+.usage .row-flex { font-size: 13px; margin-bottom: 6px; }
+.usage .small { margin-top: 4px; }
+.select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13.5px; }
+.run .row-flex { margin-top: 4px; }
+.an-progress { margin-top: 16px; font-size: 13px; color: var(--ink-2); }
+.an-progress .meter { margin-top: 6px; }
+.steps { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.step { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--ink-2); }
+.step .ico { width: 17px; height: 17px; margin-top: 2px; color: var(--muted); }
+.step.ok .ico { color: var(--safe); } .step.warn .ico { color: var(--review); } .step.bad .ico { color: var(--danger); }
+.step.text { padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); }
+.step.text .ico { color: var(--accent); }
+.claude-text { white-space: pre-wrap; line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
+details.tool { border: 1px solid var(--line-soft); border-radius: 9px; background: var(--surface-2); }
+details.tool summary { display: flex; align-items: center; gap: 9px; padding: 8px 12px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 600; }
+details.tool summary::-webkit-details-marker { display: none; }
+details.tool summary .ico { width: 16px; height: 16px; color: var(--accent); }
+details.tool summary code { font-weight: 400; color: var(--muted); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+details.tool summary .spinner { width: 13px; height: 13px; color: var(--accent); }
+.tool-io { margin: 0; padding: 10px 12px; border-top: 1px solid var(--line-soft); font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.note-card { display: flex; gap: 12px; align-items: flex-start; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line-soft); background: var(--surface); animation: fade-in .25s ease; }
+.note-card .chip { margin-top: 1px; min-width: 74px; justify-content: center; }
+.note-card b { font-size: 13.5px; }
+.note-card p { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.ai-note { margin-top: 8px; padding: 9px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+.ai-note .ai-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.ai-note .ai-head .ico { width: 15px; height: 15px; color: var(--accent); }
+.ai-note p { font-size: 13px; margin-top: 4px; color: var(--ink); }
+
 /* ---------- dialogs & toasts ---------- */
 
 dialog {

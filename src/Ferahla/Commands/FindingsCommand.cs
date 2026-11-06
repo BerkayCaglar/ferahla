@@ -26,7 +26,9 @@ internal static class FindingsCommand
     {
         var store = SnapshotStore.Default();
         if (!Scans.TryLoad(store, scanId, json, out var snap, out exitCode)) return null;
-        return Run(snap, Scans.Previous(store, snap), includePending);
+        var r = Run(snap, Scans.Previous(store, snap), includePending);
+        new Core.Notes.NoteStore(store.Home).Apply(r);
+        return r;
     }
 
     internal static FindingsResult Run(Core.Model.Snapshot snap, Core.Model.Snapshot? prev, bool includePending = false) =>

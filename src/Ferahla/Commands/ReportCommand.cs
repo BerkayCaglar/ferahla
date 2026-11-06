@@ -30,6 +30,7 @@ internal static class ReportCommand
         if (!Scans.TryLoad(store, scanId, json, out var snap, out var code)) return code;
         var prev = Scans.Previous(store, snap);
         var findings = FindingsCommand.Run(snap, prev);
+        new Core.Notes.NoteStore(store.Home).Apply(findings);
         var diff = prev is null ? null : SnapshotDiff.Compare(prev, snap, threshold: 200L << 20);
         var html = HtmlReport.Render(snap, findings, diff, DateTimeOffset.Now);
 

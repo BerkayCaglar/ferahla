@@ -51,11 +51,16 @@ internal sealed class AppState(SnapshotStore store)
     {
         var (snap, _) = Scan(id);
         var key = snap.Id + "|" + Lang.Current;
-        lock (_lock)
-            if (_findings.TryGetValue(key, out var cached)) return cached;
-        var result = FindingsService.Compute(snap, Previous(snap));
-        DropVanished(result);
-        lock (_lock) _findings[key] = result;
+        FindingsResult? result;
+        lock (_lock) _findings.TryGetValue(key, out result);
+        if (result is null)
+        {
+            result = FindingsService.Compute(snap, Previous(snap));
+            DropVanished(result);
+            lock (_lock) _findings[key] = result;
+        }
+        // Notes change while an analysis runs (written by the MCP process): applied on every read.
+        new Core.Notes.NoteStore(Store.Home).Apply(result);
         return result;
     }
 

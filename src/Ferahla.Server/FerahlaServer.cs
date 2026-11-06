@@ -66,7 +66,8 @@ public sealed class FerahlaServer : IAsyncDisposable
         var security = new Security(token, () => server!._port);
         var web = new StaticWeb();
         server = new FerahlaServer(app, token, hub, jobs);
-        var api = new Api(state, jobs, hub, () => server._stop.Cancel());
+        var analysis = new Analysis(o.Home, hub, jobs);
+        var api = new Api(state, jobs, hub, analysis, () => server._stop.Cancel());
 
         app.Use((ctx, next) => security.Invoke(ctx, next));
         app.Use(async (ctx, next) =>

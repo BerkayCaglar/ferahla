@@ -10,6 +10,7 @@ import * as explorer from './views/explorer.js';
 import * as files from './views/files.js';
 import * as quarantine from './views/quarantine.js';
 import * as history from './views/history.js';
+import * as analysis from './views/analysis.js';
 
 const ROUTES = [
   { id: 'overview', icon: 'overview', label: 'navOverview', view: overview },
@@ -18,6 +19,7 @@ const ROUTES = [
   { id: 'files', icon: 'file', label: 'navFiles', view: files },
   { id: 'quarantine', icon: 'box', label: 'navQuarantine', view: quarantine },
   { id: 'history', icon: 'history', label: 'navHistory', view: history },
+  { id: 'analysis', icon: 'robot', label: 'navAnalysis', view: analysis },
 ];
 
 let content, topbar, nav, cleanup = null, renderSeq = 0;
@@ -212,7 +214,8 @@ async function boot(relang = false) {
   window.addEventListener('hashchange', render);
   stopEvents = startEvents();
   let lastScanId = currentScan()?.id, lastRoot = store.root;
-  subscribe(what => {
+  subscribe((what, data) => {
+    if (what === 'analysis') { route().view.onEvent?.('analysis', data); return; }
     if (what === 'offline') toast(t('offline'), 'warn');
     if (what === 'online') toast(t('reconnected'), 'ok');
     renderTopbar(); badges();

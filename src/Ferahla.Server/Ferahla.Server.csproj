@@ -15,7 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The UI ships inside the exe; served by StaticWeb (no file provider, no files on disk). -->
+    <!-- The UI ships inside the exe; served by StaticWeb (no file provider, no files on disk).
+         WithCulture="false": "analyze.tr.md" is not a Turkish satellite resource. -->
+    <EmbeddedResource Include="..\..\prompts\*.md" LinkBase="prompts" LogicalName="prompts/%(Filename)%(Extension)" WithCulture="false" />
     <EmbeddedResource Include="..\..\web\**\*" LinkBase="web" LogicalName="web/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 

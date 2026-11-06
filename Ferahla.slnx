@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Ferahla.Core/Ferahla.Core.csproj" />
     <Project Path="src/Ferahla.Windows/Ferahla.Windows.csproj" />
+    <Project Path="src/Ferahla.Mcp/Ferahla.Mcp.csproj" />
     <Project Path="src/Ferahla.Server/Ferahla.Server.csproj" />
     <Project Path="src/Ferahla/Ferahla.csproj" />
   </Folder>

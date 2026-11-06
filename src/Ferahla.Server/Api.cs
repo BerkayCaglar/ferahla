@@ -5,6 +5,7 @@ using System.Text.Json.Serialization.Metadata;
 using Ferahla.Core;
 using Ferahla.Core.Cli;
 using Ferahla.Core.Model;
+using Ferahla.Core.Notes;
 using Ferahla.Core.Quarantine;
 using Ferahla.Core.Report;
 using Ferahla.Core.Rules;
@@ -20,7 +21,7 @@ namespace Ferahla.Server;
 
 /// <summary>The UI's API. Handlers are plain <see cref="RequestDelegate"/>s with source-generated JSON (NativeAOT).</summary>
 [SupportedOSPlatform("windows")]
-internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Action requestStop)
+internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis analysis, Action requestStop)
 {
     private static readonly string Version = typeof(Api).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
@@ -60,6 +61,22 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Action reques
             hub.Changed("scans");
             return Json(ctx, new OkDto { Ok = ok }, ApiJson.Web.OkDto);
         }));
+        // ---- Claude analysis (optional; Ferahla works fully without it) ----
+        app.MapGet("/api/analysis", async ctx => await Json(ctx, analysis.State(await analysis.InfoAsync()), AnalysisJson.Web.AnalysisDto));
+        app.MapPost("/api/analysis/refresh", ctx => Body(ctx, ApiJson.Web.OkDto, async _ =>
+            await Json(ctx, analysis.State(await analysis.InfoAsync(refresh: true)), AnalysisJson.Web.AnalysisDto)));
+        app.MapPost("/api/analysis/start", ctx => Body(ctx, AnalysisJson.Default.AnalysisRequest, r => StartAnalysis(ctx, r)));
+        app.MapPost("/api/analysis/stop", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = analysis.Stop() }, ApiJson.Web.OkDto)));
+        app.MapPost("/api/analysis/terminal", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = analysis.OpenTerminal() }, ApiJson.Web.OkDto)));
+        app.MapPost("/api/note", ctx => Body(ctx, ApiJson.Web.NoteRequest, r =>
+        {
+            if (!NoteStore.IsFindingId(r.FindingId)) return Error(ctx, 400, "not a finding id");
+            var v = r.Verdict switch { "remove" => NoteVerdict.Remove, "keep" => NoteVerdict.Keep, "check" => NoteVerdict.Check, _ => NoteVerdict.None };
+            new NoteStore(state.Store.Home).Set(r.FindingId, r.Text ?? "", v, "user", null, DateTimeOffset.UtcNow);
+            hub.Changed("notes");
+            return Json(ctx, new OkDto(), ApiJson.Web.OkDto);
+        }));
+
         app.MapPost("/api/quit", ctx => Body(ctx, ApiJson.Web.OkDto, async _ =>
         {
             await Json(ctx, new OkDto(), ApiJson.Web.OkDto);
@@ -152,6 +169,21 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Action reques
             jobs.Update(s => { s.Result = result; s.Current = null; }, force: true);
             return Task.CompletedTask;
         }, () => { state.InvalidateFindings(); hub.Changed("quarantine"); }, out var status), status);
+    }
+
+    private async Task StartAnalysis(HttpContext ctx, AnalysisRequest r)
+    {
+        var info = await analysis.InfoAsync(refresh: true);
+        if (!info.Installed) { await Error(ctx, 400, Lang.T("Claude Code is not installed", "Claude Code kurulu değil")); return; }
+        if (!info.LoggedIn) { await Error(ctx, 400, Lang.T("Claude Code is not logged in", "Claude Code'da oturum açılmamış")); return; }
+        Snapshot snap;
+        try { snap = state.Scan(r.Scan).Snap; }
+        catch (FileNotFoundException ex) { await Error(ctx, 404, ex.Message); return; }
+        var findings = state.Findings(snap.Id);
+        // Roughly what the prompt asks Claude to cover: the suggestions that matter, at most 30.
+        var target = Math.Min(30, findings.Findings.Count(f => f.Action != ActionKind.Info && (f.Bytes >= (10L << 20) || f.Risk == Risk.Review)));
+        var work = analysis.Prepare(snap.Id, r, Math.Max(1, target), info);
+        await Started(ctx, jobs.TryStart(JobKind.Analysis, snap.Id, false, work, () => { state.InvalidateFindings(); hub.Changed("notes"); }, out var status), status);
     }
 
     private static Task Started(HttpContext ctx, bool started, JobStatus status)

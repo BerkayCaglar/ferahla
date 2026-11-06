@@ -19,7 +19,7 @@ const pref = {
 export { pref };
 
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-function emit(what) { for (const fn of [...listeners]) fn(what); }
+function emit(what, data) { for (const fn of [...listeners]) fn(what, data); }
 
 /** Scans of the selected root, newest first. */
 export function scansOf(root) {
@@ -74,6 +74,7 @@ export function startEvents() {
       }
       return;
     }
+    if (type === 'analysis') { emit('analysis', data); return; }
     if (type === 'state') { dropCache(); refreshState().catch(() => {}); }
   }, ok => {
     if (ok === store.connected) return;

@@ -80,6 +80,20 @@ space the moment you delete them for good. Until then `ferahla restore` puts eve
 A full scan of a drive with a few million files takes about a minute the first time and well under a minute after
 that. Scans are saved under `%LOCALAPPDATA%\Ferahla\scans`.
 
+### Claude analysis (optional)
+
+If you have [Claude Code](https://claude.com/claude-code) installed and logged in, the **Claude analysis** page asks
+it for a second opinion: Claude reads the scan through Ferahla's own read-only tools (an MCP server inside
+`ferahla.exe`) and writes a short note on each suggestion that matters (remove, check first, keep), plus a summary.
+The notes show up next to the suggestions and in the HTML report.
+
+- It uses your own Claude Code installation and plan. Ferahla never reads your Claude credentials.
+- Claude gets no other tools: no files, no shell, no web. It can't move or delete anything; there is no such tool.
+- It runs in a neutral folder with your settings, hooks and CLAUDE.md files left out, and every permission prompt
+  refused. Ferahla checks the tool list at start and stops the run if anything else is enabled.
+- Your plan usage (5-hour and weekly) is shown before you start. Haiku is the lightest on your limits.
+- Ferahla works fully without it.
+
 ## Privacy
 
 - No telemetry, no network access. The HTML report loads nothing from the internet.
@@ -98,8 +112,7 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a sing
 
 ## Roadmap
 
-1. Optional analysis with your own Claude Code installation, writing notes into the report
-2. Deeper checks, system actions, apps and games pages, history
+1. Deeper checks, system actions, apps and games pages, history
 
 ## License
 

@@ -26,7 +26,11 @@ public sealed class Finding
     public long? GrowthBytes { get; set; }
     public bool IsNew { get; set; }
     public int? KeepRecentHours { get; set; }
+    /// <summary>A note on this finding (from Claude's analysis or the user), see <c>NoteStore</c>.</summary>
     public string? Note { get; set; }
+    public Notes.NoteVerdict? NoteVerdict { get; set; }
+    public string? NoteSource { get; set; }
+    public DateTimeOffset? NoteAt { get; set; }
 }
 
 public sealed class FindingItem

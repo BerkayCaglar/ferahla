@@ -3,6 +3,7 @@ import { icon, catIcon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, cached, currentScan, runJob, jobRunning, dropCache, refreshState } from '../store.js';
 import { ApiError } from '../api.js';
+import { verdictChip } from './analysis.js';
 
 const GROUPS = ['safe', 'regenerable', 'review', 'personal'];
 let box, ctxRef, data, bar, filter = { q: '', risk: 'all' };
@@ -49,7 +50,8 @@ function draw() {
       h('div', h('div.eyebrow', currentScan().root), h('h1.page-title', t('sgTitle')), h('p.page-lede', t('sgLede'))),
       h('div.row-flex',
         h('button.btn', { onclick: () => preset(f => f.risk === 'safe') }, icon('check'), t('presetSafe')),
-        data.previousScanId ? h('button.btn', { onclick: () => preset(f => f.isNew || (f.growthBytes || 0) >= 100 * 1048576) }, icon('trend'), t('presetNew')) : null)),
+        data.previousScanId ? h('button.btn', { onclick: () => preset(f => f.isNew || (f.growthBytes || 0) >= 100 * 1048576) }, icon('trend'), t('presetNew')) : null,
+        data.findings.some(f => f.noteVerdict === 'remove') ? h('button.btn', { onclick: () => preset(f => f.noteVerdict === 'remove') }, icon('robot'), t('presetClaude')) : null)),
     h('div.toolbar', tabs, h('span.sp'), h('label.input', icon('search'), search)));
   listEl = h('div');
   box.appendChild(listEl);
@@ -139,6 +141,7 @@ function row(f) {
       h('div.i-title', catIcon(f.category), h('span', f.title), tags),
       path ? h('div.i-path', path) : null,
       f.reason ? h('div.i-reason', f.reason) : null,
+      f.note ? h('div.ai-note', h('div.ai-head', icon(f.noteSource === 'claude' ? 'robot' : 'note'), h('b', f.noteSource === 'claude' ? t('claudeSays') : t('yourNote')), verdictChip(f.noteVerdict)), h('p', f.note)) : null,
       f.evidence?.length ? h('div.i-ev', f.evidence.slice(0, 4).map(e => h('span.ev', icon('check'), e))) : null,
       h('div.i-more', details)),
     h('div.i-size', size(f.bytes), grew ? h('small', grew) : f.action === 'info' ? h('small', t('act_info')) : null));

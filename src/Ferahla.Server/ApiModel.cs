@@ -145,6 +145,7 @@ public sealed class BatchRequest
 }
 public sealed class PathRequest { public string Path { get; set; } = ""; }
 public sealed class IdRequest { public string Id { get; set; } = ""; }
+public sealed class NoteRequest { public string FindingId { get; set; } = ""; public string? Text { get; set; } public string? Verdict { get; set; } }
 
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
@@ -161,6 +162,7 @@ public sealed class IdRequest { public string Id { get; set; } = ""; }
 [JsonSerializable(typeof(BatchRequest))]
 [JsonSerializable(typeof(PathRequest))]
 [JsonSerializable(typeof(IdRequest))]
+[JsonSerializable(typeof(NoteRequest))]
 [JsonSerializable(typeof(Ferahla.Core.Findings.FindingsResult))]
 [JsonSerializable(typeof(Ferahla.Core.Diff.DiffResult))]
 [JsonSerializable(typeof(List<BatchInfo>))]

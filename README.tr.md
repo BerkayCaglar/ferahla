@@ -82,6 +82,21 @@ sildiğinde açılır. O zamana kadar `ferahla restore` her şeyi geri koyar.
 Birkaç milyon dosyalı bir sürücünün tam taraması ilk seferde yaklaşık bir dakika, sonrasında bir dakikadan çok daha kısa
 sürer. Taramalar `%LOCALAPPDATA%\Ferahla\scans` altında saklanır.
 
+### Claude analizi (isteğe bağlı)
+
+[Claude Code](https://claude.com/claude-code) kuruluysa ve oturum açıksa, **Claude analizi** sayfası ondan ikinci bir
+görüş ister. Claude taramayı Ferahla'nın kendi salt okunur araçlarıyla okur (`ferahla.exe` içindeki bir MCP sunucusu).
+Önemli her öneriye kısa bir not yazar (kaldır, önce bak, tut) ve sonunda bir özet çıkarır. Notlar önerilerin yanında
+ve HTML raporda görünür.
+
+- Kendi Claude Code kurulumunu ve planını kullanır. Ferahla Claude kimlik bilgilerini asla okumaz.
+- Claude'a başka hiçbir araç verilmez: dosya, kabuk ya da web yok. Hiçbir şeyi taşıyamaz ya da silemez; böyle bir
+  araç yok.
+- Nötr bir klasörde çalışır; ayarların, hook'ların ve CLAUDE.md dosyaların dışarıda bırakılır, her izin sorusu
+  reddedilir. Ferahla başlangıçta araç listesini kontrol eder; başka bir şey açıksa çalıştırmayı durdurur.
+- Plan kullanımın (5 saatlik ve haftalık) başlamadan önce gösterilir. Limitlerine en hafif gelen Haiku'dur.
+- Ferahla onsuz da tam çalışır.
+
 ## Gizlilik
 
 - Telemetri yok, ağ erişimi yok. HTML rapor internetten hiçbir şey yüklemez.
@@ -100,8 +115,7 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~5 MB 
 
 ## Yol haritası
 
-1. İsteğe bağlı: kendi Claude Code kurulumunla analiz; notlar rapora yazılır
-2. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
+1. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
 
 ## Lisans
 
