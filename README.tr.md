@@ -4,8 +4,8 @@
 
 [English](README.md)
 
-> **Durum: erken geliştirme.** Ferahla bir sürücüyü tarayıp bulduklarını açıklayabiliyor. Henüz hiçbir şeyi taşıyamıyor
-> ya da silemiyor; sırada karantina ve tarayıcı arayüzü var. Henüz sürüm yok: kaynaktan derle.
+> **Durum: erken geliştirme.** Ferahla bir sürücüyü tarayıp bulduklarını açıklayabiliyor ve seçtiklerini komut
+> satırından geri alınabilir bir karantinaya taşıyabiliyor. Sırada tarayıcı arayüzü var. Henüz sürüm yok: kaynaktan derle.
 
 Çoğu disk temizleyici büyük klasörleri gösterir, gerisi sana kalır. Ferahla her öneri için şunu söyler:
 
@@ -44,10 +44,30 @@ ferahla diff                 önceki taramadan beri ne büyüdü, ne küçüldü
 ferahla inspect <yol>        bir klasörün boyutu, alt klasörleri ve bulguları
 ferahla report --open        tek dosyalık, salt okunur HTML rapor (tarayıcıda)
 ferahla scans                kayıtlı taramalar
+
+ferahla quarantine --plan <dosya> --dry-run   rapordaki "Plan dosyasını indir" ile alınan planı kontrol et
+ferahla quarantine --plan <dosya>             plandakileri karantinaya taşı
+ferahla quarantine --list                     karantinada neler var
+ferahla restore <kayıt>                       bir karantina kaydını eski yerine koy
 ```
 
 Her komut `--json` alır (sürümlü şema, anlamlı exit kodları); böylece betikler ve yapay zekâ ajanları da Ferahla'yı
 kullanabilir.
+
+### Karantina
+
+Karantina silme değil, taşımadır: öğeler aynı sürücüdeki bir klasöre taşınır (anında olur). Yer, kalıcı olarak
+sildiğinde açılır. O zamana kadar `ferahla restore` her şeyi geri koyar.
+
+- Plan sadece bir seçimdir. Ferahla bir şeyi taşımadan önce o taramanın bulgularını yeniden hesaplar ve bir öğeyi
+  sadece hâlâ tam olarak o öğeyi öneriyorsa taşır. Elle değiştirilmiş ya da eskimiş bir plan başka bir şey taşıyamaz.
+- Plan ne derse desin Windows, Program Files, sürücü kökleri ve profil/sistem klasörlerinin kendileri taşınmaz.
+- Temp'te son 24 saatte değişmiş öğeler yerinde kalır.
+- Kullanımda olan bir öğe atlanır ve onu tutan programla birlikte raporlanır (Restart Manager ile); gerisi devam eder.
+- Karantina, Ferahla'nın verisinin olduğu sürücüde `%LOCALAPPDATA%\Ferahla\quarantine` altında; diğer sürücülerde
+  sadece senin, SYSTEM'in ve Administrators'ın açabildiği gizli `X:\.ferahla\quarantine` klasöründe durur. Sadece sabit
+  NTFS/ReFS sürücüler; USB ve ağ sürücülerinde sadece bilgi gösterilir.
+- Kalıcı silme bilerek bir komut değil; arayüzde bir buton olacak.
 
 Birkaç milyon dosyalı bir sürücünün tam taraması ilk seferde yaklaşık bir dakika, sonrasında bir dakikadan çok daha kısa
 sürer. Taramalar `%LOCALAPPDATA%\Ferahla\scans` altında saklanır.
@@ -70,10 +90,9 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~5 MB 
 
 ## Yol haritası
 
-1. Karantina: seçilenleri anında kenara taşı, geri al, sonra kalıcı sil (sadece arayüzden)
-2. Aynı raporu canlı gösteren yerel tarayıcı arayüzü
-3. İsteğe bağlı: kendi Claude Code kurulumunla analiz; notlar rapora yazılır
-4. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
+1. Aynı raporu canlı gösteren yerel tarayıcı arayüzü: seç, karantinaya al, geri al, kalıcı sil
+2. İsteğe bağlı: kendi Claude Code kurulumunla analiz; notlar rapora yazılır
+3. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
 
 ## Lisans
 

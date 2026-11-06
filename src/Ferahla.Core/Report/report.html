@@ -122,6 +122,8 @@ details li{word-break:break-all}
 .t-num{font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
 .t-lab{font-size:13px;color:var(--muted);margin-left:-10px}
 .sp{flex:1}
+.t-hint{flex-basis:100%;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.t-hint code{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--text)}
 footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
 footer ul{padding-left:18px}
 footer li{word-break:break-all}
@@ -160,6 +162,7 @@ footer li{word-break:break-all}
     <span class="t-num" id="tSize">0</span><span class="t-lab" id="tCount"></span><span class="sp"></span>
     <button class="btn" id="copyBtn"></button>
     <button class="btn btn-primary" id="planBtn"></button>
+    <div class="t-hint" id="planHint" hidden></div>
   </div>
 </div>
 <script type="application/json" id="data">/*__DATA__*/</script>
@@ -179,7 +182,7 @@ const L = tr ? {
   all: 'tümünü seç', items: n => `${n} öğe`, more: n => `… ${n} tane daha`, details: 'Ayrıntılar', breaks: 'Ne bozulur', restore: 'Geri getirme',
   isNew: 'yeni', since: g => `son taramadan beri ${g}`,
   act: { command: 'Komutla', uninstall: 'Kaldır', launcher: 'Uygulamasından kaldır', info: 'Bilgi' },
-  count: n => `${n} kalem seçildi`, copy: 'Seçilenleri kopyala', copied: 'Kopyalandı ✓', nothing: 'Hiçbir şey seçilmedi', plan: 'Plan dosyasını indir',
+  count: n => `${n} kalem seçildi`, copy: 'Seçilenleri kopyala', copied: 'Kopyalandı ✓', nothing: 'Hiçbir şey seçilmedi', plan: 'Plan dosyasını indir', planHint: 'Sonra önce deneme yap, ardından taşı (geri alınabilir):',
   notSuggested: 'Listede olmayanlar', generated: (t, v) => `${t} tarihinde Ferahla ${v} ile oluşturuldu. Boyutlar taramadaki gerçek bayt toplamları.`,
   copyHead: s => `SEÇİLENLER (${s}):`,
 } : {
@@ -193,7 +196,7 @@ const L = tr ? {
   all: 'select all', items: n => `${n} items`, more: n => `… ${n} more`, details: 'Details', breaks: 'What breaks', restore: 'How to restore',
   isNew: 'new', since: g => `${g} since last scan`,
   act: { command: 'By command', uninstall: 'Uninstall', launcher: 'Remove from its app', info: 'Info' },
-  count: n => `${n} selected`, copy: 'Copy selection', copied: 'Copied ✓', nothing: 'Nothing selected', plan: 'Download plan file',
+  count: n => `${n} selected`, copy: 'Copy selection', copied: 'Copied ✓', nothing: 'Nothing selected', plan: 'Download plan file', planHint: 'Then do a dry run first, then move (undoable):',
   notSuggested: 'Not in the list', generated: (t, v) => `Generated ${t} by Ferahla ${v}. Sizes are real byte totals from the scan.`,
   copyHead: s => `SELECTED (${s}):`,
 };
@@ -302,7 +305,10 @@ planBtn.onclick = () => {
     findings: s.map(f => ({ id: f.id, ruleId: f.ruleId, action: f.action, items: f.items.filter(i => !i.nestedIn).map(i => ({ path: i.path, bytes: i.bytes })) })) };
   const url = URL.createObjectURL(new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' }));
   const a = document.createElement('a');
-  a.href = url; a.download = `ferahla-plan-${D.findings.scanId}.json`; a.click();
+  const name = `ferahla-plan-${D.findings.scanId}.json`;
+  a.href = url; a.download = name; a.click();
+  const hint = $('planHint'); hint.hidden = false;
+  hint.innerHTML = `${esc(L.planHint)}<br><code>ferahla quarantine --plan ${esc(name)} --dry-run</code><br><code>ferahla quarantine --plan ${esc(name)}</code>`;
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 };
 update();

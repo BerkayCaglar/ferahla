@@ -4,8 +4,8 @@
 
 [Türkçe](README.tr.md)
 
-> **Status: early development.** Ferahla can scan a drive and explain what it finds. It cannot move or delete
-> anything yet; quarantine and the browser UI are next. There are no releases yet: build from source.
+> **Status: early development.** Ferahla can scan a drive, explain what it finds, and move what you select into an
+> undoable quarantine from the command line. The browser UI is next. There are no releases yet: build from source.
 
 Most disk cleaners show you big folders, and the rest is up to you. Ferahla tells you for each suggestion:
 
@@ -44,9 +44,29 @@ ferahla diff                 what grew or shrank since the previous scan
 ferahla inspect <path>       size, subfolders and findings for one folder
 ferahla report --open        a single-file, read-only HTML report in your browser
 ferahla scans                saved scans
+
+ferahla quarantine --plan <file> --dry-run   check a plan from the report's "Download plan file"
+ferahla quarantine --plan <file>             move its items into quarantine
+ferahla quarantine --list                    what is in quarantine
+ferahla restore <batch>                      put a batch back where it came from
 ```
 
 Every command takes `--json` (versioned schema, meaningful exit codes), so scripts and AI agents can use Ferahla too.
+
+### Quarantine
+
+Quarantine is a move, not a delete: items are renamed into a folder on the same drive, which is instant and frees the
+space the moment you delete them for good. Until then `ferahla restore` puts everything back.
+
+- A plan only selects. Before anything moves, Ferahla computes the findings of that scan again and moves an item only
+  if it still suggests exactly that item. A hand-edited or outdated plan can't move anything else.
+- Windows, Program Files, drive roots and the profile and system folders themselves never move, whatever a plan says.
+- Temp entries changed in the last 24 hours stay where they are.
+- An item that is in use is skipped and reported with the program holding it (via Restart Manager); the rest goes on.
+- Quarantine lives in `%LOCALAPPDATA%\Ferahla\quarantine` for the drive that holds it, and in a hidden
+  `X:\.ferahla\quarantine` that only you, SYSTEM and Administrators can open on other drives. Only fixed NTFS/ReFS
+  drives; USB and network drives are information only.
+- Deleting for good is deliberately not a command. It will be a button in the UI.
 
 A full scan of a drive with a few million files takes about a minute the first time and well under a minute after
 that. Scans are saved under `%LOCALAPPDATA%\Ferahla\scans`.
@@ -69,10 +89,9 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a sing
 
 ## Roadmap
 
-1. Quarantine: move selected items aside instantly, undo, then delete for good (only from the UI)
-2. A local browser UI with the same report, live
-3. Optional analysis with your own Claude Code installation, writing notes into the report
-4. Deeper checks, system actions, apps and games pages, history
+1. A local browser UI with the same report, live: select, quarantine, undo, delete for good
+2. Optional analysis with your own Claude Code installation, writing notes into the report
+3. Deeper checks, system actions, apps and games pages, history
 
 ## License
 

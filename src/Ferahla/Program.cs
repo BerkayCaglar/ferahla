@@ -1,4 +1,4 @@
-﻿using System.CommandLine;
+using System.CommandLine;
 using System.Text;
 using Ferahla.Commands;
 using Ferahla.Core.Text;
@@ -17,5 +17,7 @@ root.Subcommands.Add(FindingsCommand.Create(json));
 root.Subcommands.Add(DiffCommand.Create(json));
 root.Subcommands.Add(InspectCommand.Create(json));
 root.Subcommands.Add(ReportCommand.Create(json));
+root.Subcommands.Add(QuarantineCommand.Create(json));
+root.Subcommands.Add(RestoreCommand.Create(json));
 
 return root.Parse(args).Invoke();

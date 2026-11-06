@@ -30,6 +30,22 @@ internal static unsafe partial class Native
         finally { CoTaskMemFree(p); }
     }
 
+    [LibraryImport("kernel32.dll", EntryPoint = "MoveFileExW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool MoveFileEx(string existing, string target, uint flags);
+
+    /// <summary>
+    /// Renames a file or folder within one volume. No copy fallback (unlike <see cref="File.Move(string, string)"/>),
+    /// never replaces an existing target. Returns 0 or the Win32 error code.
+    /// </summary>
+    public static int Rename(string from, string to) =>
+        MoveFileEx(ExtendedPath(from), ExtendedPath(to), 0) ? 0 : Marshal.GetLastPInvokeError();
+
+    /// <summary>Always <c>\\?\</c>-prefixed: no MAX_PATH limit, no reinterpretation of the (already full) path.</summary>
+    public static string ExtendedPath(string path) =>
+        path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path
+        : path.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
+
     /// <summary>Win32 APIs that don't go through .NET need the \\?\ prefix for paths over MAX_PATH.</summary>
     public static string LongPath(string path) =>
         path.Length < 248 || path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path

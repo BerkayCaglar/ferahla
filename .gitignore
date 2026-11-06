@@ -27,6 +27,8 @@ disk-raporu-*.json
 scan*.json
 scans/
 quarantine/
+# ...but not the quarantine source code (Windows matches ignore patterns case-insensitively)
+!src/**/Quarantine/
 .ferahla/
 *-log.txt
 *.log
