@@ -1,0 +1,53 @@
+{
+  "$schema": "./schema.json",
+  "rules": [
+    {
+      "id": "game.steam",
+      "category": "game",
+      "risk": "review",
+      "action": "launcher",
+      "match": {
+        "path": ["%ProgramFilesX86%\\Steam\\steamapps\\common\\*", "%SystemDrive%\\SteamLibrary\\steamapps\\common\\*", "%SystemDrive%\\Program Files\\Steam\\steamapps\\common\\*"],
+        "excludeNames": ["Steamworks Shared", "Steam Controller Configs", "SteamVR"]
+      },
+      "minBytes": 1073741824,
+      "title": { "en": "Steam game: {name}", "tr": "Steam oyunu: {name}" },
+      "reason": { "en": "Uninstall it from Steam so Steam knows it's gone; you can install it again any time.", "tr": "Steam'den kaldır ki Steam de bilsin; istediğin zaman yeniden kurarsın." },
+      "whatBreaks": { "en": "Local saves of some games live in the game folder.", "tr": "Bazı oyunların yerel kayıtları oyun klasöründedir." },
+      "howToRestore": { "en": "Install again from your Steam library.", "tr": "Steam kütüphanenden yeniden kur." }
+    },
+    {
+      "id": "game.ea",
+      "category": "game",
+      "risk": "review",
+      "action": "launcher",
+      "match": { "path": ["%ProgramFiles%\\EA Games\\*", "%ProgramFilesX86%\\Origin Games\\*"] },
+      "minBytes": 1073741824,
+      "title": { "en": "EA game: {name}", "tr": "EA oyunu: {name}" },
+      "reason": { "en": "Uninstall it from the EA app.", "tr": "EA uygulamasından kaldır." },
+      "howToRestore": { "en": "Install again from the EA app.", "tr": "EA uygulamasından yeniden kur." }
+    },
+    {
+      "id": "game.riot",
+      "category": "game",
+      "risk": "review",
+      "action": "launcher",
+      "match": { "path": ["%SystemDrive%\\Riot Games\\*"], "excludeNames": ["Riot Client"] },
+      "minBytes": 1073741824,
+      "title": { "en": "Riot game: {name}", "tr": "Riot oyunu: {name}" },
+      "reason": { "en": "Uninstall it from Riot Client or Windows Settings → Apps.", "tr": "Riot Client'tan ya da Windows Ayarlar → Uygulamalar'dan kaldır." },
+      "howToRestore": { "en": "Install again from Riot Client.", "tr": "Riot Client'tan yeniden kur." }
+    },
+    {
+      "id": "game.epic",
+      "category": "game",
+      "risk": "review",
+      "action": "launcher",
+      "match": { "path": ["%ProgramFiles%\\Epic Games\\*"], "excludeNames": ["Launcher", "Epic Online Services"] },
+      "minBytes": 1073741824,
+      "title": { "en": "Epic game: {name}", "tr": "Epic oyunu: {name}" },
+      "reason": { "en": "Uninstall it from the Epic Games Launcher.", "tr": "Epic Games Launcher'dan kaldır." },
+      "howToRestore": { "en": "Install again from the Epic Games Launcher.", "tr": "Epic Games Launcher'dan yeniden kur." }
+    }
+  ]
+}

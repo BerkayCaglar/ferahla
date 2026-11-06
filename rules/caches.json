@@ -1,0 +1,173 @@
+{
+  "$schema": "./schema.json",
+  "rules": [
+    {
+      "id": "cache.temp",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%Temp%"] },
+      "keepRecentHours": 24,
+      "minBytes": 104857600,
+      "title": { "en": "Temporary files", "tr": "Geçici dosyalar" },
+      "reason": { "en": "Programs leave files here and often never clean up.", "tr": "Programlar buraya dosya bırakır ve çoğu zaman temizlemez." },
+      "whatBreaks": { "en": "Nothing, if files changed in the last 24 hours are kept (Ferahla keeps them). A program that is running right now might lose a temp file.", "tr": "Son 24 saatte değişen dosyalar bırakılırsa (Ferahla bırakır) hiçbir şey. O an çalışan bir program geçici dosyasını kaybedebilir." },
+      "howToRestore": { "en": "Programs create new temp files as needed.", "tr": "Programlar gerektiğinde yenilerini oluşturur." }
+    },
+    {
+      "id": "cache.crashdumps",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\CrashDumps"] },
+      "title": { "en": "Crash dumps", "tr": "Çökme dökümleri" },
+      "reason": { "en": "Memory dumps written when programs crashed.", "tr": "Programlar çöktüğünde yazılan bellek dökümleri." },
+      "whatBreaks": { "en": "Nothing; only useful when reporting a specific crash.", "tr": "Hiçbir şey; sadece belirli bir çökmeyi bildirirken işe yarar." }
+    },
+    {
+      "id": "cache.pip",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\pip\\cache"] },
+      "title": { "en": "pip download cache", "tr": "pip indirme önbelleği" },
+      "whatBreaks": { "en": "Nothing; installed packages stay. The next install downloads again.", "tr": "Hiçbir şey; kurulu paketler kalır. Sonraki kurulum yeniden indirir." },
+      "howToRestore": { "en": "Refilled automatically. Same as: pip cache purge", "tr": "Kendiliğinden dolar. Eşdeğeri: pip cache purge" }
+    },
+    {
+      "id": "cache.uv",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\uv\\cache"] },
+      "title": { "en": "uv cache", "tr": "uv önbelleği" },
+      "whatBreaks": { "en": "Nothing; environments that use hardlinks to the cache keep their files. Next install downloads again.", "tr": "Hiçbir şey; önbelleğe hardlink veren ortamlar dosyalarını korur. Sonraki kurulum yeniden indirir." },
+      "howToRestore": { "en": "Refilled automatically. Same as: uv cache clean", "tr": "Kendiliğinden dolar. Eşdeğeri: uv cache clean" }
+    },
+    {
+      "id": "cache.npm",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\npm-cache", "%AppData%\\npm-cache"] },
+      "title": { "en": "npm cache", "tr": "npm önbelleği" },
+      "whatBreaks": { "en": "Nothing; projects keep their node_modules.", "tr": "Hiçbir şey; projeler node_modules'larını korur." },
+      "howToRestore": { "en": "Refilled automatically. Same as: npm cache clean --force", "tr": "Kendiliğinden dolar. Eşdeğeri: npm cache clean --force" }
+    },
+    {
+      "id": "cache.yarn-pnpm",
+      "category": "cache",
+      "risk": "regenerable",
+      "match": { "path": ["%LocalAppData%\\Yarn\\Cache", "%LocalAppData%\\pnpm\\store", "%LocalAppData%\\pnpm-cache"] },
+      "title": { "en": "Yarn / pnpm package store", "tr": "Yarn / pnpm paket deposu" },
+      "whatBreaks": { "en": "pnpm projects link into its store; run pnpm install again in them.", "tr": "pnpm projeleri bu depoya bağlanır; onlarda tekrar pnpm install çalıştır." },
+      "howToRestore": { "en": "Package installs download again.", "tr": "Paket kurulumları yeniden indirir." }
+    },
+    {
+      "id": "cache.nuget",
+      "category": "cache",
+      "risk": "regenerable",
+      "match": { "path": ["%UserProfile%\\.nuget\\packages"] },
+      "title": { "en": "NuGet package cache", "tr": "NuGet paket önbelleği" },
+      "whatBreaks": { "en": ".NET projects restore packages again on the next build (needs internet).", "tr": ".NET projeleri bir sonraki derlemede paketleri yeniden indirir (internet gerekir)." },
+      "howToRestore": { "en": "dotnet restore. Same as: dotnet nuget locals global-packages --clear", "tr": "dotnet restore. Eşdeğeri: dotnet nuget locals global-packages --clear" }
+    },
+    {
+      "id": "cache.cargo-registry-src",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%UserProfile%\\.cargo\\registry\\src"] },
+      "title": { "en": "Cargo unpacked crate sources", "tr": "Cargo açılmış crate kaynakları" },
+      "whatBreaks": { "en": "Nothing; Cargo unpacks them again from its download cache.", "tr": "Hiçbir şey; Cargo indirme önbelleğinden yeniden açar." }
+    },
+    {
+      "id": "cache.cargo-registry-cache",
+      "category": "cache",
+      "risk": "regenerable",
+      "match": { "path": ["%UserProfile%\\.cargo\\registry\\cache"] },
+      "title": { "en": "Cargo crate downloads", "tr": "Cargo crate indirmeleri" },
+      "whatBreaks": { "en": "Rust builds download crates again (needs internet).", "tr": "Rust derlemeleri crate'leri yeniden indirir (internet gerekir)." }
+    },
+    {
+      "id": "cache.go",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\go-build"] },
+      "title": { "en": "Go build cache", "tr": "Go derleme önbelleği" },
+      "whatBreaks": { "en": "Next Go build is slower. Same as: go clean -cache", "tr": "Sonraki Go derlemesi yavaşlar. Eşdeğeri: go clean -cache" }
+    },
+    {
+      "id": "cache.gradle",
+      "category": "cache",
+      "risk": "regenerable",
+      "match": { "path": ["%UserProfile%\\.gradle\\caches"] },
+      "title": { "en": "Gradle caches", "tr": "Gradle önbellekleri" },
+      "whatBreaks": { "en": "Gradle downloads dependencies again on the next build.", "tr": "Gradle sonraki derlemede bağımlılıkları yeniden indirir." }
+    },
+    {
+      "id": "cache.conda-pkgs",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%UserProfile%\\miniconda3\\pkgs", "%UserProfile%\\anaconda3\\pkgs", "%UserProfile%\\.conda\\pkgs"] },
+      "minBytes": 209715200,
+      "title": { "en": "Conda package cache", "tr": "Conda paket önbelleği" },
+      "whatBreaks": { "en": "Nothing for existing environments. Prefer: conda clean --all", "tr": "Mevcut ortamlar için hiçbir şey. Tercihen: conda clean --all" }
+    },
+    {
+      "id": "cache.dotcache",
+      "category": "cache",
+      "risk": "regenerable",
+      "match": { "path": ["%UserProfile%\\.cache"] },
+      "minBytes": 209715200,
+      "title": { "en": "General cache folder (.cache)", "tr": "Genel önbellek klasörü (.cache)" },
+      "reason": { "en": "Many developer tools (Hugging Face, bazel, pre-commit…) keep downloads here.", "tr": "Birçok geliştirici aracı (Hugging Face, bazel, pre-commit…) indirmelerini burada tutar." },
+      "whatBreaks": { "en": "Tools download again; AI models can be large.", "tr": "Araçlar yeniden indirir; yapay zekâ modelleri büyük olabilir." }
+    },
+    {
+      "id": "cache.unity",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\Unity\\cache"] },
+      "title": { "en": "Unity asset & shader cache", "tr": "Unity asset ve shader önbelleği" },
+      "whatBreaks": { "en": "The editor rebuilds it; the first project open is slower.", "tr": "Editör yeniden üretir; projenin ilk açılışı yavaşlar." }
+    },
+    {
+      "id": "cache.gpu-shaders",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%LocalAppData%\\NVIDIA\\DXCache", "%LocalAppData%\\NVIDIA\\GLCache", "%LocalAppData%\\D3DSCache", "%LocalAppData%\\AMD\\DxCache", "%LocalAppData%\\AMD\\DxcCache", "%LocalAppData%\\AMD\\VkCache"] },
+      "title": { "en": "GPU shader cache ({name})", "tr": "GPU shader önbelleği ({name})" },
+      "whatBreaks": { "en": "Games may stutter the first time they run again while shaders are rebuilt.", "tr": "Oyunlar tekrar ilk açılışta shader'lar yeniden üretilirken takılabilir." }
+    },
+    {
+      "id": "cache.nvidia-installers",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": ["%ProgramData%\\NVIDIA Corporation\\Downloader", "%ProgramData%\\NVIDIA Corporation\\NVIDIA App\\**\\ota-artifacts"] },
+      "title": { "en": "NVIDIA driver download leftovers", "tr": "NVIDIA sürücü indirme artıkları" },
+      "reason": { "en": "Setup files of drivers that are already installed.", "tr": "Zaten kurulmuş sürücülerin kurulum dosyaları." },
+      "whatBreaks": { "en": "Nothing; NVIDIA App downloads a driver again when needed.", "tr": "Hiçbir şey; NVIDIA App gerektiğinde sürücüyü yeniden indirir." }
+    },
+    {
+      "id": "cache.browsers",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": [
+        "%LocalAppData%\\Google\\Chrome\\User Data\\*\\Cache",
+        "%LocalAppData%\\Google\\Chrome\\User Data\\*\\Code Cache",
+        "%LocalAppData%\\Microsoft\\Edge\\User Data\\*\\Cache",
+        "%LocalAppData%\\Microsoft\\Edge\\User Data\\*\\Code Cache",
+        "%LocalAppData%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Cache",
+        "%LocalAppData%\\Mozilla\\Firefox\\Profiles\\*\\cache2"
+      ] },
+      "title": { "en": "Browser cache", "tr": "Tarayıcı önbelleği" },
+      "whatBreaks": { "en": "Pages load a little slower at first. Logins and history are not affected. Close the browser first.", "tr": "Sayfalar ilk başta biraz yavaş açılır. Oturumlar ve geçmiş etkilenmez. Önce tarayıcıyı kapat." }
+    },
+    {
+      "id": "cache.electron-apps",
+      "category": "cache",
+      "risk": "safe",
+      "match": { "path": [
+        "%AppData%\\Code\\Cache", "%AppData%\\Code\\CachedData", "%AppData%\\Code\\CachedExtensionVSIXs",
+        "%AppData%\\discord\\Cache", "%AppData%\\Slack\\Cache", "%AppData%\\Microsoft\\Teams\\Cache"
+      ] },
+      "title": { "en": "App cache ({name})", "tr": "Uygulama önbelleği ({name})" },
+      "whatBreaks": { "en": "Nothing; the app rebuilds it. Close the app first.", "tr": "Hiçbir şey; uygulama yeniden üretir. Önce uygulamayı kapat." }
+    }
+  ]
+}

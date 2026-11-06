@@ -1,0 +1,21 @@
+﻿using System.CommandLine;
+using System.Text;
+using Ferahla.Commands;
+using Ferahla.Core.Text;
+
+Console.OutputEncoding = new UTF8Encoding(false);
+
+var json = new Option<bool>("--json") { Description = Lang.T("Machine-readable JSON output (versioned schema)", "Makine okunur JSON çıktı (sürümlü şema)"), Recursive = true };
+
+var root = new RootCommand(Lang.T(
+    "Ferahla: find what fills your disk and clean it up safely.",
+    "Ferahla: diskini neyin doldurduğunu bul, güvenle temizle."));
+root.Options.Add(json);
+root.Subcommands.Add(ScanCommand.Create(json));
+root.Subcommands.Add(ScansCommand.Create(json));
+root.Subcommands.Add(FindingsCommand.Create(json));
+root.Subcommands.Add(DiffCommand.Create(json));
+root.Subcommands.Add(InspectCommand.Create(json));
+root.Subcommands.Add(ReportCommand.Create(json));
+
+return root.Parse(args).Invoke();

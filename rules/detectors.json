@@ -1,0 +1,141 @@
+{
+  "$schema": "./schema.json",
+  "rules": [
+    {
+      "id": "installer.downloads",
+      "category": "installer",
+      "risk": "safe",
+      "match": { "detector": "installers" },
+      "minBytes": 0,
+      "title": { "en": "{product} installers ×{count}", "tr": "{product} kurulum dosyaları ×{count}" },
+      "reason": { "en": "The program is already installed; these are the setup files you downloaded.", "tr": "Program zaten kurulu; bunlar indirdiğin kurulum dosyaları." },
+      "whatBreaks": { "en": "Nothing. To reinstall later you download the installer again.", "tr": "Hiçbir şey. Yeniden kurmak istersen kurulumu tekrar indirirsin." }
+    },
+    {
+      "id": "archive.extracted",
+      "category": "archive",
+      "risk": "review",
+      "match": { "detector": "archives" },
+      "minBytes": 52428800,
+      "title": { "en": "Archive: {name}", "tr": "Arşiv: {name}" },
+      "reason": { "en": "Either its extracted copy sits next to it, or it was never extracted.", "tr": "Ya açılmış kopyası yanında duruyor ya da hiç açılmamış." },
+      "whatBreaks": { "en": "If the folder has everything, nothing. Otherwise the archive was the only copy.", "tr": "Klasörde her şey varsa hiçbir şey. Yoksa tek kopya arşivdi." }
+    },
+    {
+      "id": "download.partial",
+      "category": "partial",
+      "risk": "review",
+      "match": { "detector": "partials" },
+      "minBytes": 0,
+      "title": { "en": "Unfinished download: {name}", "tr": "Yarım kalmış indirme: {name}" },
+      "whatBreaks": { "en": "The download can't be resumed from where it stopped.", "tr": "İndirme kaldığı yerden devam ettirilemez." }
+    },
+    {
+      "id": "old.unity-editor",
+      "category": "old-version",
+      "risk": "review",
+      "action": "launcher",
+      "match": { "detector": "unity-editors" },
+      "minBytes": 104857600,
+      "title": { "en": "Unity {version} (not used by your projects)", "tr": "Unity {version} (projelerin kullanmıyor)" },
+      "whatBreaks": { "en": "Opening a project that needs this version asks you to install it again.", "tr": "Bu sürümü isteyen bir proje açınca tekrar kurman istenir." },
+      "howToRestore": { "en": "Remove it from Unity Hub → Installs. Reinstall from Unity Hub when needed.", "tr": "Unity Hub → Installs'tan kaldır. Gerektiğinde Unity Hub'dan yeniden kur." }
+    },
+    {
+      "id": "old.cli-versions",
+      "category": "old-version",
+      "risk": "review",
+      "match": { "detector": "cli-versions" },
+      "minBytes": 52428800,
+      "title": { "en": "Old {name} CLI versions ×{count}", "tr": "Eski {name} CLI sürümleri ×{count}" },
+      "whatBreaks": { "en": "Nothing if the tool runs the newest version (it normally does).", "tr": "Araç en yeni sürümü çalıştırıyorsa (normalde öyle) hiçbir şey." }
+    },
+    {
+      "id": "old.playwright",
+      "category": "old-version",
+      "risk": "regenerable",
+      "match": { "detector": "playwright" },
+      "minBytes": 104857600,
+      "title": { "en": "Old Playwright browsers", "tr": "Eski Playwright tarayıcıları" },
+      "whatBreaks": { "en": "Projects pinned to an older Playwright download their browser again.", "tr": "Eski Playwright sürümüne sabitlenmiş projeler tarayıcıyı yeniden indirir." },
+      "howToRestore": { "en": "npx playwright install", "tr": "npx playwright install" }
+    },
+    {
+      "id": "old.windows-sdk",
+      "category": "old-version",
+      "risk": "review",
+      "action": "uninstall",
+      "match": { "detector": "windows-sdk" },
+      "title": { "en": "Old Windows SDK {version}", "tr": "Eski Windows SDK {version}" },
+      "whatBreaks": { "en": "Projects that target exactly this SDK version stop building until it is installed again.", "tr": "Tam bu SDK sürümünü hedefleyen projeler yeniden kurulana kadar derlenmez." },
+      "howToRestore": { "en": "Visual Studio Installer → Individual components.", "tr": "Visual Studio Installer → Tek tek bileşenler." }
+    },
+    {
+      "id": "repo.clone",
+      "category": "duplicate",
+      "risk": "review",
+      "match": { "detector": "repo-clones" },
+      "minBytes": 104857600,
+      "title": { "en": "Second copy of a repository: {name}", "tr": "Bir reponun ikinci kopyası: {name}" },
+      "reason": { "en": "It points at the same remote as {main}.", "tr": "{main} ile aynı remote'a bağlı." },
+      "whatBreaks": { "en": "Any work that exists only in this copy.", "tr": "Sadece bu kopyada olan iş." }
+    },
+    {
+      "id": "duplicate.file",
+      "category": "duplicate",
+      "risk": "review",
+      "match": { "detector": "duplicates" },
+      "minBytes": 52428800,
+      "title": { "en": "{name}: {count} extra copies", "tr": "{name}: {count} fazla kopya" },
+      "whatBreaks": { "en": "Nothing if the other copy is identical; run the full check first.", "tr": "Diğer kopya birebir aynıysa hiçbir şey; önce tam kontrolü çalıştır." }
+    },
+    {
+      "id": "system.hiberfil",
+      "category": "system",
+      "risk": "review",
+      "action": "command",
+      "command": "powercfg -h off",
+      "match": { "detector": "hiberfil" },
+      "minBytes": 104857600,
+      "title": { "en": "Hibernation file", "tr": "Hazırda bekletme dosyası" },
+      "reason": { "en": "Don't delete it: turn hibernation off and Windows removes it.", "tr": "Silme: hazırda beklemeyi kapat, Windows kendisi kaldırır." },
+      "whatBreaks": { "en": "Hibernate and Fast Startup are turned off.", "tr": "Hazırda bekletme ve hızlı başlatma kapanır." },
+      "howToRestore": { "en": "powercfg -h on (as administrator)", "tr": "powercfg -h on (yönetici olarak)" }
+    },
+    {
+      "id": "system.vm-image",
+      "category": "system",
+      "risk": "review",
+      "action": "info",
+      "match": { "detector": "vm-images" },
+      "minBytes": 1073741824,
+      "title": { "en": "Virtual disk: {name}", "tr": "Sanal disk: {name}" },
+      "reason": { "en": "Everything inside the virtual machine lives in this file. Free space inside it, or remove the VM from its own app.", "tr": "Sanal makinenin içindeki her şey bu dosyada. İçinde yer aç ya da sanal makineyi kendi uygulamasından kaldır." }
+    },
+    {
+      "id": "system.unaccounted",
+      "category": "system",
+      "risk": "review",
+      "action": "info",
+      "command": "vssadmin list shadowstorage",
+      "match": { "detector": "unaccounted" },
+      "minBytes": 0,
+      "title": { "en": "Space the scan could not see", "tr": "Taramanın göremediği alan" },
+      "reason": { "en": "Used space that no readable file accounts for: system restore points (shadow copies), other users' files, protected system folders.", "tr": "Okunabilen hiçbir dosyanın açıklamadığı dolu alan: sistem geri yükleme noktaları (gölge kopyalar), diğer kullanıcıların dosyaları, korumalı sistem klasörleri." },
+      "howToRestore": { "en": "To see restore points' share: vssadmin list shadowstorage (as administrator).", "tr": "Geri yükleme noktalarının payını görmek için: vssadmin list shadowstorage (yönetici olarak)." }
+    },
+    {
+      "id": "system.component-store",
+      "category": "system",
+      "risk": "review",
+      "action": "command",
+      "command": "DISM /Online /Cleanup-Image /StartComponentCleanup",
+      "match": { "detector": "component-store" },
+      "minBytes": 5368709120,
+      "title": { "en": "Windows component store (WinSxS)", "tr": "Windows bileşen deposu (WinSxS)" },
+      "reason": { "en": "Never delete it by hand. DISM removes superseded components safely.", "tr": "Asla elle silinmez. DISM eskimiş bileşenleri güvenle kaldırır." },
+      "whatBreaks": { "en": "Nothing; /ResetBase (which makes updates permanent) is never used.", "tr": "Hiçbir şey; güncellemeleri kalıcı yapan /ResetBase hiç kullanılmaz." },
+      "howToRestore": { "en": "First see what it would free: DISM /Online /Cleanup-Image /AnalyzeComponentStore", "tr": "Önce ne kazandıracağını gör: DISM /Online /Cleanup-Image /AnalyzeComponentStore" }
+    }
+  ]
+}

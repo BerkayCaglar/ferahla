@@ -1,0 +1,15 @@
+{
+  "$schema": "./schema.json",
+  "rules": [
+    {
+      "id": "agent.tmp",
+      "category": "agent-temp",
+      "risk": "review",
+      "match": { "dirName": [".agent-tmp"] },
+      "minBytes": 52428800,
+      "title": { "en": "AI agent scratch folder in {parent}", "tr": "{parent} içinde yapay zekâ ajanı geçici klasörü" },
+      "reason": { "en": "Coding agents leave test copies, logs and downloads here.", "tr": "Kodlama ajanları buraya test kopyaları, loglar ve indirmeler bırakır." },
+      "whatBreaks": { "en": "Usually nothing, but look inside first: an agent may still be using it.", "tr": "Genelde hiçbir şey, ama önce içine bak: bir ajan hâlâ kullanıyor olabilir." }
+    }
+  ]
+}

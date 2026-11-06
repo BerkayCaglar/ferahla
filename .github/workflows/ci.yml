@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Put vswhere on PATH (NativeAOT link step needs it)
+        shell: pwsh
+        run: Add-Content $env:GITHUB_PATH "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+
+      - name: Privacy check
+        shell: pwsh
+        run: ./tools/check-private.ps1 -All
+
+      - name: Test
+        run: dotnet test --solution Ferahla.slnx -c Release
+
+      - name: Publish (NativeAOT, win-x64)
+        run: dotnet publish src/Ferahla -c Release -o publish
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          ./publish/ferahla.exe --help
+          $env:FERAHLA_HOME = "$env:RUNNER_TEMP\ferahla-home"
+          ./publish/ferahla.exe scan "$env:RUNNER_TEMP" --json
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          ./publish/ferahla.exe findings --json | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ferahla-win-x64
+          path: publish/ferahla.exe
+          retention-days: 14

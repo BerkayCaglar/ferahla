@@ -1,0 +1,146 @@
+{
+  "$schema": "./schema.json",
+  "rules": [
+    {
+      "id": "build.rust",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["CargoToml"], "targets": ["target"] },
+      "title": { "en": "Rust build output: {name}", "tr": "Rust derleme çıktısı: {name}" },
+      "whatBreaks": { "en": "The next build starts from scratch and takes longer.", "tr": "Sonraki derleme sıfırdan başlar, daha uzun sürer." },
+      "howToRestore": { "en": "cargo build", "tr": "cargo build" }
+    },
+    {
+      "id": "build.node",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["PackageJson"], "targets": ["node_modules", ".next", ".nuxt", ".turbo", ".parcel-cache", ".svelte-kit", ".angular"] },
+      "title": { "en": "Node dependencies / build cache: {name}", "tr": "Node bağımlılıkları / build önbelleği: {name}" },
+      "whatBreaks": { "en": "The project won't run until dependencies are installed again.", "tr": "Bağımlılıklar yeniden kurulana kadar proje çalışmaz." },
+      "howToRestore": { "en": "npm install (or yarn / pnpm install)", "tr": "npm install (ya da yarn / pnpm install)" }
+    },
+    {
+      "id": "build.dotnet",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["CsProj"], "targets": ["bin", "obj"] },
+      "title": { "en": ".NET build output: {name}", "tr": ".NET derleme çıktısı: {name}" },
+      "whatBreaks": { "en": "Next build is slower.", "tr": "Sonraki derleme daha yavaş." },
+      "howToRestore": { "en": "dotnet build", "tr": "dotnet build" }
+    },
+    {
+      "id": "build.dotnet-fs",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["FsProj"], "targets": ["bin", "obj"] },
+      "title": { "en": ".NET build output: {name}", "tr": ".NET derleme çıktısı: {name}" },
+      "howToRestore": { "en": "dotnet build", "tr": "dotnet build" }
+    },
+    {
+      "id": "build.unity",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["UnityAssets", "UnityProjectSettings"], "targets": ["Library", "Temp", "Obj", "Logs", "MemoryCaptures"] },
+      "title": { "en": "Unity generated folders: {name}", "tr": "Unity'nin ürettiği klasörler: {name}" },
+      "reason": { "en": "Library/ is Unity's import cache; it is rebuilt from Assets/.", "tr": "Library/ Unity'nin import önbelleği; Assets/'ten yeniden üretilir." },
+      "whatBreaks": { "en": "The next time you open the project, Unity re-imports everything (can take a long time).", "tr": "Proje bir sonraki açılışta her şeyi yeniden import eder (uzun sürebilir)." },
+      "howToRestore": { "en": "Open the project in Unity.", "tr": "Projeyi Unity'de aç." }
+    },
+    {
+      "id": "build.unity-builds",
+      "category": "build",
+      "risk": "review",
+      "match": { "marker": ["UnityAssets", "UnityProjectSettings"], "targets": ["Build", "Builds"] },
+      "title": { "en": "Unity player builds: {name}", "tr": "Unity oyun build'leri: {name}" },
+      "reason": { "en": "Built game files. Might be a release you want to keep.", "tr": "Derlenmiş oyun dosyaları. Saklamak istediğin bir sürüm olabilir." },
+      "whatBreaks": { "en": "The build is gone until you build again.", "tr": "Yeniden derleyene kadar build yok." }
+    },
+    {
+      "id": "build.gradle",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["Gradle"], "targets": ["build", ".gradle"] },
+      "title": { "en": "Gradle build output: {name}", "tr": "Gradle derleme çıktısı: {name}" },
+      "howToRestore": { "en": "gradle build", "tr": "gradle build" }
+    },
+    {
+      "id": "build.maven",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["PomXml"], "targets": ["target"] },
+      "title": { "en": "Maven build output: {name}", "tr": "Maven derleme çıktısı: {name}" },
+      "howToRestore": { "en": "mvn package", "tr": "mvn package" }
+    },
+    {
+      "id": "build.cmake",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["CMakeLists"], "targets": ["build", "cmake-build-*", "out"] },
+      "title": { "en": "CMake build folders: {name}", "tr": "CMake derleme klasörleri: {name}" },
+      "whatBreaks": { "en": "You need to configure and build again.", "tr": "Yeniden configure ve build gerekir." }
+    },
+    {
+      "id": "build.python",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["PyProject"], "targets": [".venv", "venv", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".nox", "__pycache__"] },
+      "title": { "en": "Python environment / caches: {name}", "tr": "Python ortamı / önbellekleri: {name}" },
+      "whatBreaks": { "en": "A removed .venv must be recreated before the project runs.", "tr": "Silinen .venv, proje çalışmadan önce yeniden oluşturulmalı." },
+      "howToRestore": { "en": "uv sync / pip install -e . (whatever the project uses)", "tr": "uv sync / pip install -e . (proje neyi kullanıyorsa)" }
+    },
+    {
+      "id": "build.dart",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["Pubspec"], "targets": [".dart_tool", "build"] },
+      "title": { "en": "Flutter/Dart build output: {name}", "tr": "Flutter/Dart derleme çıktısı: {name}" },
+      "howToRestore": { "en": "flutter pub get / flutter build", "tr": "flutter pub get / flutter build" }
+    },
+    {
+      "id": "build.php",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["ComposerJson"], "targets": ["vendor"] },
+      "title": { "en": "Composer dependencies: {name}", "tr": "Composer bağımlılıkları: {name}" },
+      "howToRestore": { "en": "composer install", "tr": "composer install" }
+    },
+    {
+      "id": "build.elixir",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["MixExs"], "targets": ["_build", "deps", ".elixir_ls"] },
+      "title": { "en": "Elixir build output: {name}", "tr": "Elixir derleme çıktısı: {name}" },
+      "howToRestore": { "en": "mix deps.get && mix compile", "tr": "mix deps.get && mix compile" }
+    },
+    {
+      "id": "build.haskell",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["StackYaml"], "targets": [".stack-work"] },
+      "title": { "en": "Haskell Stack build output: {name}", "tr": "Haskell Stack derleme çıktısı: {name}" }
+    },
+    {
+      "id": "build.zig",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["BuildZig"], "targets": ["zig-cache", ".zig-cache", "zig-out"] },
+      "title": { "en": "Zig build output: {name}", "tr": "Zig derleme çıktısı: {name}" }
+    },
+    {
+      "id": "build.unreal",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["UnrealProject"], "targets": ["Binaries", "Intermediate", "DerivedDataCache"] },
+      "title": { "en": "Unreal generated folders: {name}", "tr": "Unreal'ın ürettiği klasörler: {name}" },
+      "reason": { "en": "Saved/ is left alone: it holds config and autosaves.", "tr": "Saved/ bırakılır: ayarları ve otomatik kayıtları içerir." },
+      "whatBreaks": { "en": "The editor recompiles and rebuilds shaders on next open.", "tr": "Editör bir sonraki açılışta yeniden derler, shader'ları yeniden üretir." }
+    },
+    {
+      "id": "build.godot",
+      "category": "build",
+      "risk": "regenerable",
+      "match": { "marker": ["GodotProject"], "targets": [".godot"] },
+      "title": { "en": "Godot import cache: {name}", "tr": "Godot import önbelleği: {name}" }
+    }
+  ]
+}

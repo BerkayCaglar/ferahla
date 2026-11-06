@@ -1,0 +1,12 @@
+<Project>
+  <!-- Keep the developer's local paths (user name, folder layout) out of compiled files -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=/_/</PathMap>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- NativeAOT: the MSVC linker writes the full PDB path into the exe; keep only the file name -->
+    <LinkerArg Include="/PDBALTPATH:%_PDB%" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,312 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<meta name="referrer" content="no-referrer">
+<title>Ferahla</title>
+<style>
+:root{
+  --ground:#F2F5F7; --surface:#FFFFFF; --surface-2:#F8FAFB;
+  --ink:#0F1519; --ink-2:#39454F; --muted:#6B7885;
+  --line:#DCE3E9; --line-soft:#EAEFF3;
+  --accent:#16657E; --accent-soft:#E3F0F4; --on-accent:#FFFFFF;
+  --safe:#25714F; --safe-bg:#E4F1EA;
+  --regen:#2F5F9E; --regen-bg:#E5EDF8;
+  --care:#8A5A05; --care-bg:#F8EEDC;
+  --personal:#6A4C93; --personal-bg:#EEE8F6;
+  --bar-used:#3C4A55; --bar-free:#CDD7DE; --bar-gain:#16657E;
+  --shadow:0 1px 2px rgba(15,21,25,.05),0 8px 24px -12px rgba(15,21,25,.18);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1216; --surface:#141B21; --surface-2:#101922;
+    --ink:#E7EEF3; --ink-2:#B6C3CD; --muted:#8494A1;
+    --line:#26313A; --line-soft:#1D262E;
+    --accent:#5FC2DC; --accent-soft:#13333E; --on-accent:#0D1216;
+    --safe:#6FCBA0; --safe-bg:#122A22;
+    --regen:#8DB4EC; --regen-bg:#16233A;
+    --care:#E0AC55; --care-bg:#2C2417;
+    --personal:#C4A8EC; --personal-bg:#241B33;
+    --bar-used:#55656F; --bar-free:#252F37; --bar-gain:#5FC2DC;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1216; --surface:#141B21; --surface-2:#101922;
+  --ink:#E7EEF3; --ink-2:#B6C3CD; --muted:#8494A1;
+  --line:#26313A; --line-soft:#1D262E;
+  --accent:#5FC2DC; --accent-soft:#13333E; --on-accent:#0D1216;
+  --safe:#6FCBA0; --safe-bg:#122A22;
+  --regen:#8DB4EC; --regen-bg:#16233A;
+  --care:#E0AC55; --care-bg:#2C2417;
+  --personal:#C4A8EC; --personal-bg:#241B33;
+  --bar-used:#55656F; --bar-free:#252F37; --bar-gain:#5FC2DC;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:"Cascadia Mono",Consolas,ui-monospace,monospace}
+.wrap{max-width:1000px;margin:0 auto;padding:0 16px 120px}
+header{padding:36px 0 20px}
+.eyebrow{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+h1{font-family:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;font-weight:700;font-size:clamp(26px,4.6vw,38px);line-height:1.1;letter-spacing:-.015em;margin:0 0 10px;text-wrap:balance}
+.lede{margin:0;color:var(--ink-2);max-width:66ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.gauge{margin-top:24px;padding:18px 20px 20px}
+.gauge-top{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;margin-bottom:14px}
+.big{font-weight:700;font-size:26px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.big small{font-size:14px;font-weight:500;color:var(--muted);margin-left:4px}
+.big.after{color:var(--accent)}
+.arrow{color:var(--muted);font-size:18px}
+.bar{height:14px;border-radius:7px;overflow:hidden;display:flex;background:var(--bar-free)}
+.bar span{display:block;height:100%;transition:width .25s ease}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:11px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.growth{margin-top:16px;padding:16px 20px 18px}
+.growth h2{font-size:15px;font-weight:600;margin:0 0 12px}
+.g-row{display:grid;grid-template-columns:minmax(0,1.4fr) 1fr 5rem;gap:12px;align-items:center;padding:4px 0}
+.g-lab{font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}
+.g-track{display:block;height:10px;background:var(--line-soft);border-radius:5px;overflow:hidden}
+.g-fill{display:block;height:100%;background:var(--bar-used);border-radius:5px}
+.g-row:first-of-type .g-fill{background:var(--accent)}
+.g-val{font-size:13px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{margin:12px 0 0;font-size:12.5px;color:var(--muted)}
+code{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:7px;padding:7px 13px;font-size:13.5px;font-weight:500}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:focus-visible,.link:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{opacity:.9;color:var(--on-accent)}
+section{margin-top:32px}
+.sec-head{display:flex;align-items:flex-start;gap:12px;padding-bottom:11px;border-bottom:2px solid var(--ink)}
+.sec-title{flex:1;min-width:0}
+.sec-title h2{font-size:17px;font-weight:600;margin:0 0 3px}
+.sec-title p{margin:0;font-size:13px;color:var(--muted)}
+.chip{flex:none;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:4px;white-space:nowrap}
+.chip.safe{background:var(--safe-bg);color:var(--safe)}
+.chip.regenerable{background:var(--regen-bg);color:var(--regen)}
+.chip.review{background:var(--care-bg);color:var(--care)}
+.chip.personal{background:var(--personal-bg);color:var(--personal)}
+.sum{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;align-self:center}
+.link{font-size:12.5px;background:none;border:0;color:var(--accent);padding:2px 0;text-decoration:underline;text-underline-offset:3px}
+.row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:0 14px;padding:13px 2px;border-bottom:1px solid var(--line-soft);align-items:start}
+.row:hover{background:var(--surface-2)}
+.row.on{background:var(--accent-soft)}
+.row input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--accent);cursor:pointer}
+.row input:disabled{cursor:not-allowed;opacity:.35}
+.r-name{font-weight:600;font-size:14.5px;display:block;margin-bottom:3px}
+.tag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:2px}
+.r-path{font-family:"Cascadia Mono",Consolas,monospace;font-size:11.5px;color:var(--muted);display:block;word-break:break-all;margin-bottom:3px}
+.row label{min-width:0}
+.r-name,.r-note,.r-ev{overflow-wrap:anywhere}
+.r-note{font-size:13px;color:var(--ink-2);display:block}
+.r-ev{font-size:12.5px;color:var(--muted);display:block;margin-top:2px}
+.r-size{font-weight:600;font-size:14.5px;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.r-size small{display:block;font-weight:500;font-size:12px;color:var(--muted)}
+.row.on .r-size{color:var(--accent)}
+details{margin-top:6px;font-size:12.5px;color:var(--ink-2)}
+summary{cursor:pointer;color:var(--accent);width:max-content}
+details ul{margin:6px 0 0;padding-left:18px}
+details li{word-break:break-all}
+.cmd{display:block;margin-top:4px}
+.tally{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 24px -14px rgba(15,21,25,.4);padding:12px 16px;z-index:10}
+.tally-in{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.t-num{font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+.t-lab{font-size:13px;color:var(--muted);margin-left:-10px}
+.sp{flex:1}
+footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+footer ul{padding-left:18px}
+footer li{word-break:break-all}
+@media (max-width:600px){
+  .sec-head{flex-wrap:wrap}.sum{width:100%}
+  .row{grid-template-columns:22px minmax(0,1fr)}
+  .r-size{grid-column:2;text-align:left;padding-top:5px}.r-size small{display:inline;margin-left:6px}
+  .g-row{grid-template-columns:minmax(0,1fr) 4.6rem}.g-track{grid-column:1 / -1;grid-row:2}
+  .sp{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{.tally,.presets,input,.link{display:none!important}.wrap{padding-bottom:0}.row{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1 id="h1"></h1>
+    <p class="lede" id="lede"></p>
+    <div class="gauge card">
+      <div class="gauge-top">
+        <span class="big" id="now"></span><span class="arrow">→</span><span class="big after" id="after"></span>
+      </div>
+      <div class="bar"><span id="segUsed" style="background:var(--bar-used)"></span><span id="segGain" style="background:var(--bar-gain)"></span></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="growth card" id="growth" hidden></div>
+    <div class="presets" id="presets"></div>
+  </header>
+  <main id="list"></main>
+  <footer id="foot"></footer>
+</div>
+<div class="tally">
+  <div class="tally-in">
+    <span class="t-num" id="tSize">0</span><span class="t-lab" id="tCount"></span><span class="sp"></span>
+    <button class="btn" id="copyBtn"></button>
+    <button class="btn btn-primary" id="planBtn"></button>
+  </div>
+</div>
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const tr = D.lang === 'tr';
+document.documentElement.lang = D.lang;
+const L = tr ? {
+  eyebrow: (d, n, s) => `${d} · ${n} dosya tarandı · ${s} sn`,
+  h1: r => `${r} diskinde ne yer kaplıyor`,
+  lede: (free, sug) => `Şu an <strong>${free}</strong> boş. Ferahla <strong>${sug}</strong> kadar öneri buldu. Kalemleri işaretledikçe ne kadar yer açılacağını canlı görürsün. Bu sayfa salt okunur; hiçbir dosyaya dokunmaz.`,
+  free: 'boş', used: 'Dolu', selected: 'Seçilen (açılacak)', freeL: 'Boş', total: 'Toplam',
+  growth: (days) => `Son taramadan beri ne değişti (${days} gün)`, growthNote: (f) => `Boş alan değişimi: ${f}.`,
+  pSafe: 'Risksizleri seç', pNew: 'Son taramadan beri birikenler', pClear: 'Temizle',
+  groups: { safe: ['Risksiz', 'Program yeniden üretir; silinince bir şey bozulmaz.'], regenerable: ['Yeniden üretilir', 'Geri gelir ama zaman ya da indirme ister.'], review: ['Bak, karar ver', 'Silmeden önce bir göz at.'], personal: ['Kişisel', 'Bilgi için.'] },
+  all: 'tümünü seç', items: n => `${n} öğe`, more: n => `… ${n} tane daha`, details: 'Ayrıntılar', breaks: 'Ne bozulur', restore: 'Geri getirme',
+  isNew: 'yeni', since: g => `son taramadan beri ${g}`,
+  act: { command: 'Komutla', uninstall: 'Kaldır', launcher: 'Uygulamasından kaldır', info: 'Bilgi' },
+  count: n => `${n} kalem seçildi`, copy: 'Seçilenleri kopyala', copied: 'Kopyalandı ✓', nothing: 'Hiçbir şey seçilmedi', plan: 'Plan dosyasını indir',
+  notSuggested: 'Listede olmayanlar', generated: (t, v) => `${t} tarihinde Ferahla ${v} ile oluşturuldu. Boyutlar taramadaki gerçek bayt toplamları.`,
+  copyHead: s => `SEÇİLENLER (${s}):`,
+} : {
+  eyebrow: (d, n, s) => `${d} · ${n} files scanned · ${s} s`,
+  h1: r => `What fills ${r}`,
+  lede: (free, sug) => `<strong>${free}</strong> free right now. Ferahla found <strong>${sug}</strong> of suggestions. Tick items to see how much space they would free. This page is read-only; it never touches a file.`,
+  free: 'free', used: 'Used', selected: 'Selected (would be freed)', freeL: 'Free', total: 'Total',
+  growth: (days) => `What changed since the last scan (${days} days)`, growthNote: (f) => `Free space change: ${f}.`,
+  pSafe: 'Select safe ones', pNew: 'What piled up since last scan', pClear: 'Clear',
+  groups: { safe: ['Safe', 'Programs regenerate it; nothing breaks.'], regenerable: ['Regenerable', 'Comes back, at the cost of time or a download.'], review: ['Review', 'Take a look before deciding.'], personal: ['Personal', 'For information.'] },
+  all: 'select all', items: n => `${n} items`, more: n => `… ${n} more`, details: 'Details', breaks: 'What breaks', restore: 'How to restore',
+  isNew: 'new', since: g => `${g} since last scan`,
+  act: { command: 'By command', uninstall: 'Uninstall', launcher: 'Remove from its app', info: 'Info' },
+  count: n => `${n} selected`, copy: 'Copy selection', copied: 'Copied ✓', nothing: 'Nothing selected', plan: 'Download plan file',
+  notSuggested: 'Not in the list', generated: (t, v) => `Generated ${t} by Ferahla ${v}. Sizes are real byte totals from the scan.`,
+  copyHead: s => `SELECTED (${s}):`,
+};
+const nf1 = new Intl.NumberFormat(D.lang, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const nf0 = new Intl.NumberFormat(D.lang, { maximumFractionDigits: 0 });
+const size = b => { const u = ['B','KB','MB','GB','TB']; let i = 0, v = Math.abs(b); while (v >= 1024 && i < 4) { v /= 1024; i++; } return (b < 0 ? '-' : '') + (i === 0 || v >= 100 ? nf0 : nf1).format(v) + ' ' + u[i]; };
+const signed = b => (b > 0 ? '+' : '') + size(b);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const $ = id => document.getElementById(id);
+
+const F = D.findings.findings;
+const actionable = f => f.action !== 'info' && f.bytes > 0;
+const total = D.findings.totalBytes, free0 = D.findings.freeBytes;
+const scanned = new Date(D.findings.scannedAt);
+
+$('eyebrow').textContent = L.eyebrow(scanned.toLocaleDateString(D.lang, { day: 'numeric', month: 'long', year: 'numeric' }), nf0.format(D.files), nf0.format(D.elapsedSeconds));
+$('h1').textContent = L.h1(D.findings.root.replace(/\\$/, ''));
+$('lede').innerHTML = L.lede(esc(size(free0)), esc(size(F.filter(actionable).reduce((a, f) => a + f.bytes, 0))));
+$('now').innerHTML = `${esc(size(free0))}<small>${L.free}</small>`;
+$('legend').innerHTML = `<span><i style="background:var(--bar-used)"></i>${L.used}</span><span><i style="background:var(--bar-gain)"></i>${L.selected}</span><span><i style="background:var(--bar-free)"></i>${L.freeL}</span><span>${L.total} ${esc(size(total))}</span>`;
+
+if (D.diff && D.diff.entries.length) {
+  const g = $('growth'); g.hidden = false;
+  const days = Math.max(0, Math.round((new Date(D.diff.toAt) - new Date(D.diff.fromAt)) / 864e5));
+  const top = D.diff.entries.filter(e => e.delta > 0).slice(0, 8);
+  const max = Math.max(1, ...top.map(e => e.delta));
+  g.innerHTML = `<h2>${esc(L.growth(days))}</h2>` + top.map(e =>
+    `<div class="g-row"><span class="g-lab mono">${esc(e.path)}</span><span class="g-track"><span class="g-fill" style="width:${(e.delta / max * 100).toFixed(1)}%"></span></span><span class="g-val mono">${esc(signed(e.delta))}</span></div>`).join('') +
+    `<p class="note">${esc(L.growthNote(signed(D.diff.freeBytesDelta)))}</p>`;
+}
+
+const order = ['safe', 'regenerable', 'review', 'personal'];
+const list = $('list');
+order.forEach(risk => {
+  const items = F.filter(f => f.risk === risk);
+  if (!items.length) return;
+  const sec = document.createElement('section');
+  const sum = items.filter(actionable).reduce((a, f) => a + f.bytes, 0);
+  sec.innerHTML = `<div class="sec-head"><span class="chip ${risk}">${esc(L.groups[risk][0])}</span>
+    <div class="sec-title"><h2>${esc(L.groups[risk][0])}</h2><p>${esc(L.groups[risk][1])} · <button class="link" data-all="${risk}">${L.all}</button></p></div>
+    <span class="sum mono">${esc(size(sum))}</span></div>`;
+  items.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const first = f.items[0];
+    const extra = f.items.length > 1 ? ` <span>(+${f.items.length - 1})</span>` : '';
+    const tags = (f.isNew ? `<span class="tag">${L.isNew}</span>` : '') + (f.action !== 'quarantine' ? `<span class="tag">${esc(L.act[f.action] || f.action)}</span>` : '');
+    const growth = !f.isNew && f.growthBytes && Math.abs(f.growthBytes) >= 104857600 ? `<small>${esc(L.since(signed(f.growthBytes)))}</small>` : '';
+    const ev = (f.evidence || []).map(esc).join(' · ');
+    const shown = f.items.slice(0, 20).map(i => `<li class="mono">${esc(i.path)} — ${esc(size(i.bytes))}</li>`).join('') + (f.items.length > 20 ? `<li>${esc(L.more(f.items.length - 20))}</li>` : '');
+    const det = [f.whatBreaks ? `<p><strong>${L.breaks}:</strong> ${esc(f.whatBreaks)}</p>` : '', f.howToRestore ? `<p><strong>${L.restore}:</strong> ${esc(f.howToRestore)}</p>` : '', f.items.length > 1 ? `<ul>${shown}</ul>` : ''].join('');
+    const id = 'c-' + f.id;
+    row.innerHTML = `<input type="checkbox" id="${id}" data-id="${esc(f.id)}" data-risk="${risk}" ${actionable(f) ? '' : 'disabled'}>
+      <label for="${id}"><span class="r-name">${esc(f.title)}${tags}</span>
+      ${first ? `<span class="r-path">${esc(first.path)}${extra}</span>` : ''}
+      ${f.reason ? `<span class="r-note">${esc(f.reason)}</span>` : ''}
+      ${ev ? `<span class="r-ev">${ev}</span>` : ''}
+      ${f.command ? `<code class="cmd">${esc(f.command)}</code>` : ''}
+      ${det ? `<details><summary>${L.details}</summary>${det}</details>` : ''}</label>
+      <span class="r-size mono">${esc(size(f.bytes))}${growth}</span>`;
+    sec.appendChild(row);
+  });
+  list.appendChild(sec);
+});
+
+const notes = D.findings.notSuggested || [];
+$('foot').innerHTML = (notes.length ? `<p><strong>${L.notSuggested}</strong></p><ul>${notes.slice(0, 30).map(n => `<li><code>${esc(n.path)}</code> ${esc(size(n.bytes))} — ${esc(n.reason)}</li>`).join('')}</ul>` : '') +
+  `<p>${esc(L.generated(new Date(D.generatedAt).toLocaleString(D.lang), D.toolVersion))}</p>`;
+
+const boxes = [...document.querySelectorAll('.row input')];
+const byId = Object.fromEntries(F.map(f => [f.id, f]));
+function update() {
+  let bytes = 0, n = 0;
+  boxes.forEach(b => { b.closest('.row').classList.toggle('on', b.checked); if (b.checked) { bytes += byId[b.dataset.id].bytes; n++; } });
+  $('tSize').textContent = size(bytes);
+  $('tCount').textContent = L.count(n);
+  const free = free0 + bytes;
+  $('after').innerHTML = `${esc(size(free))}<small>${L.free}</small>`;
+  $('segUsed').style.width = Math.max(0, (total - free) / total * 100) + '%';
+  $('segGain').style.width = (bytes / total * 100) + '%';
+}
+boxes.forEach(b => b.addEventListener('change', update));
+list.addEventListener('click', e => {
+  const r = e.target.closest('[data-all]'); if (!r) return;
+  const mine = boxes.filter(b => b.dataset.risk === r.dataset.all && !b.disabled);
+  const all = mine.every(b => b.checked); mine.forEach(b => b.checked = !all); update();
+});
+const presets = $('presets');
+const preset = (label, fn, primary) => { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' btn-primary' : ''); b.textContent = label; b.onclick = () => { boxes.forEach(x => x.checked = !x.disabled && fn(byId[x.dataset.id])); update(); }; presets.appendChild(b); };
+preset(L.pSafe, f => f.risk === 'safe', true);
+if (D.findings.previousScanId) preset(L.pNew, f => f.isNew || (f.growthBytes || 0) >= 104857600);
+preset(L.pClear, () => false);
+
+const selected = () => boxes.filter(b => b.checked).map(b => byId[b.dataset.id]);
+const copyBtn = $('copyBtn'), planBtn = $('planBtn');
+copyBtn.textContent = L.copy; planBtn.textContent = L.plan;
+const flash = (btn, text, back) => { btn.textContent = text; setTimeout(() => btn.textContent = back, 1600); };
+copyBtn.onclick = async () => {
+  const s = selected(); if (!s.length) return flash(copyBtn, L.nothing, L.copy);
+  const txt = L.copyHead(size(s.reduce((a, f) => a + f.bytes, 0))) + '\n' + s.map(f => `- ${f.title} — ${f.items.map(i => i.path).join(', ')}${f.command ? ' > ' + f.command : ''}`).join('\n');
+  try { await navigator.clipboard.writeText(txt); flash(copyBtn, L.copied, L.copy); } catch { flash(copyBtn, '×', L.copy); }
+};
+planBtn.onclick = () => {
+  const s = selected(); if (!s.length) return flash(planBtn, L.nothing, L.plan);
+  const plan = { schema: 1, kind: 'ferahla-plan', scanId: D.findings.scanId, createdAt: new Date().toISOString(),
+    findings: s.map(f => ({ id: f.id, ruleId: f.ruleId, action: f.action, items: f.items.filter(i => !i.nestedIn).map(i => ({ path: i.path, bytes: i.bytes })) })) };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `ferahla-plan-${D.findings.scanId}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+};
+update();
+})();
+</script>
+</body>
+</html>

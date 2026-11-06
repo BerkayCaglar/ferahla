@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ferahla.Core/Ferahla.Core.csproj" />
+    <Project Path="src/Ferahla.Windows/Ferahla.Windows.csproj" />
+    <Project Path="src/Ferahla/Ferahla.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ferahla.Core.Tests/Ferahla.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Ferahla.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\rules\*.json" LinkBase="rules" LogicalName="rules/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Report\report.html" LogicalName="report/report.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ferahla.Core.Tests" />
+  </ItemGroup>
+
+</Project>
