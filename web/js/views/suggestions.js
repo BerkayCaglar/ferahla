@@ -2,7 +2,7 @@ import { h, clear, size, signed, riskName, catName, date, copyText, toast, dialo
 import { icon, catIcon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, cached, currentScan, runJob, jobRunning, dropCache, refreshState } from '../store.js';
-import { ApiError } from '../api.js';
+import { ApiError, post } from '../api.js';
 import { verdictChip } from './analysis.js';
 
 const GROUPS = ['safe', 'regenerable', 'review', 'personal'];
@@ -134,6 +134,11 @@ function row(f) {
       [h('dt', t('rule')), h('dd.mono', f.ruleId)]),
     f.action !== 'quarantine' ? h('p', { class: 'how' }, t('actHow_' + f.action)) : null,
     f.command ? h('div.cmdline', h('code', f.command), h('button.btn.btn-sm', { text: t('copy'), onclick: e => copyText(f.command, e.currentTarget) })) : null,
+    h('div.row-flex.actions-row',
+      f.items.length && f.action !== 'info' ? h('button.btn.btn-sm', { onclick: e => verify(f, e.currentTarget) }, icon('checkCircle'), t('verify')) : null,
+      (SYSTEM[f.ruleId] || []).map(([id, label]) => h('button.btn.btn-sm', { onclick: () => runSystem(id) }, icon('shield'), t(label))),
+      f.action === 'uninstall' || f.action === 'launcher' ? h('button.btn.btn-sm', { onclick: () => ctxRef.go('apps', { tab: f.category === 'game' ? 'games' : 'apps' }) }, icon('apps'), t('openApps')) : null),
+    h('div.verify-out'),
     top.length > 1 ? h('ul.paths', top.slice(0, 30).map(i => h('li', h('span', i.path), h('span', size(i.bytes))))) : null);
 
   el.append(cb,
@@ -156,6 +161,37 @@ function refreshGroupChecks() {
     all.checked = boxes.length > 0 && on === boxes.length;
     all.indeterminate = on > 0 && on < boxes.length;
   }
+}
+
+// ---- deep checks and system actions ----
+
+const SYSTEM = {
+  'system.hiberfil': [['hibernate-off', 'sysHibernate']],
+  'system.component-store': [['component-analyze', 'sysAnalyze'], ['component-cleanup', 'sysCleanup']],
+  'system.unaccounted': [['shadow-storage', 'sysShadow']],
+};
+
+async function verify(f, btn) {
+  const out = btn.closest('details').querySelector('.verify-out');
+  btn.disabled = true;
+  clear(out).appendChild(h('div.step', h('span.spinner'), t('verifying')));
+  try {
+    const r = await post('/api/verify', { findingId: f.id, scan: data.scanId });
+    clear(out).appendChild(h('div.verify-box' + (r.ok ? '.ok' : '.warn'),
+      h('b', icon(r.ok ? 'checkCircle' : 'warn'), r.ok ? t('verified') : t('notVerified')),
+      h('ul', r.checks.map(c => h('li', c)))));
+  } catch (e) { clear(out).appendChild(h('div.note.danger', icon('xCircle'), h('div', t('errorGeneric', e.message)))); }
+  btn.disabled = false;
+}
+
+async function runSystem(id) {
+  const ok = await dialog(() => ({
+    icon: 'shield', title: t('sysTitle'), text: t('sysText'),
+    actions: [{ label: t('cancel'), kind: 'ghost', value: false }, { label: t('sysRun'), kind: 'primary', value: true }],
+  }));
+  if (!ok) return;
+  const r = await post('/api/system', { id }).catch(e => ({ ok: false, message: e.message }));
+  toast(r.ok ? t('sysStarted', r.message || '') : t('sysDeclined'), r.ok ? 'ok' : 'warn');
 }
 
 // ---- action bar ----

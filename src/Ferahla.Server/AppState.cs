@@ -64,6 +64,18 @@ internal sealed class AppState(SnapshotStore store)
         return result;
     }
 
+    /// <summary>Change between two scans of the same root; <paramref name="fromId"/> null = the scan right before.</summary>
+    public DiffResult? Diff(string? id, string? fromId)
+    {
+        if (string.IsNullOrEmpty(fromId)) return Diff(id);
+        var (snap, _) = Scan(id);
+        if (!fromId.All(c => char.IsAsciiLetterOrDigit(c) || c == '-')) throw new FileNotFoundException(fromId);
+        var from = Store.Load(fromId);
+        if (!string.Equals(PathUtil.Normalize(from.Root), PathUtil.Normalize(snap.Root), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException(Lang.T("Scans are of different places", "Taramalar farklı yerlerin"));
+        return from.ScannedAt <= snap.ScannedAt ? SnapshotDiff.Compare(from, snap, 200L << 20) : SnapshotDiff.Compare(snap, from, 200L << 20);
+    }
+
     public DiffResult? Diff(string? id)
     {
         var (snap, _) = Scan(id);

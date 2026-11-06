@@ -145,6 +145,7 @@ public sealed class BatchRequest
 }
 public sealed class PathRequest { public string Path { get; set; } = ""; }
 public sealed class IdRequest { public string Id { get; set; } = ""; }
+public sealed class VerifyRequest { public string FindingId { get; set; } = ""; public string? Scan { get; set; } }
 public sealed class NoteRequest { public string FindingId { get; set; } = ""; public string? Text { get; set; } public string? Verdict { get; set; } }
 
 [JsonSourceGenerationOptions(
@@ -163,6 +164,9 @@ public sealed class NoteRequest { public string FindingId { get; set; } = ""; pu
 [JsonSerializable(typeof(PathRequest))]
 [JsonSerializable(typeof(IdRequest))]
 [JsonSerializable(typeof(NoteRequest))]
+[JsonSerializable(typeof(VerifyRequest))]
+[JsonSerializable(typeof(Ferahla.Core.Findings.VerifyResult))]
+[JsonSerializable(typeof(List<Ferahla.Windows.AppEntry>))]
 [JsonSerializable(typeof(Ferahla.Core.Findings.FindingsResult))]
 [JsonSerializable(typeof(Ferahla.Core.Diff.DiffResult))]
 [JsonSerializable(typeof(List<BatchInfo>))]

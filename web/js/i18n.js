@@ -163,6 +163,22 @@ const en = {
   tool_get_summary: 'Read the summary', tool_list_findings: 'Listed suggestions', tool_inspect_path: 'Looked inside', tool_verify_finding: 'Verified on disk', tool_get_diff: 'Compared scans',
   claudeSays: 'Claude’s assessment', yourNote: 'Your note', presetClaude: 'What Claude says to remove',
   editNote: 'Edit note', addNote: 'Add a note', notePh: 'Your note on this suggestion', save: 'Save',
+
+  verify: 'Verify on disk', verifying: 'Checking against the disk…', verified: 'Verified', notVerified: 'Not fully verified: look before acting',
+  openApps: 'Open in Apps & games',
+  sysHibernate: 'Turn off hibernation…', sysAnalyze: 'Analyze component store…', sysCleanup: 'Clean up components…', sysShadow: 'Show restore point space…',
+  sysTitle: 'Run as administrator?',
+  sysText: 'Windows asks for permission for this one step. A console window opens and shows the result; Ferahla itself keeps running without administrator rights.',
+  sysRun: 'Continue', sysStarted: c => `Started: ${c}`, sysDeclined: 'Not started (permission declined).',
+  apTitle: 'Apps & games', apLede: 'What is installed and how big. Removing goes through the app’s own uninstaller or its launcher, never by deleting folders.',
+  apApps: 'Apps', apGames: 'Games', apPublisher: 'Publisher', apSettings: 'Windows Apps settings',
+  apUninstall: 'Uninstall…', apSteamRemove: 'Remove in Steam…',
+  apConfirmTitle: n => `Uninstall ${n}?`,
+  apConfirmText: 'This starts the app’s own uninstaller. It may ask for permission and has its own steps; Ferahla doesn’t delete anything itself.',
+  apConfirmSteam: 'This opens Steam’s uninstall dialog for the game. Your Steam library keeps it; you can install it again any time.',
+  apStarted: 'Uninstaller started. Scan again afterwards to see the space.', apFailed: 'Could not start the uninstaller. Try Windows Apps settings.',
+  apNote: 'Sizes come from the scan when the app’s folder was scanned; ~ marks the installer’s own estimate.',
+  hiCompareWith: 'Compare with', hiSince: d => `since ${d}`,
 };
 
 const tr = {
@@ -327,6 +343,22 @@ const tr = {
   tool_get_summary: 'Özeti okudu', tool_list_findings: 'Önerileri listeledi', tool_inspect_path: 'İçine baktı', tool_verify_finding: 'Diskte doğruladı', tool_get_diff: 'Taramaları karşılaştırdı',
   claudeSays: 'Claude’un değerlendirmesi', yourNote: 'Notun', presetClaude: 'Claude’un kaldır dedikleri',
   editNote: 'Notu düzenle', addNote: 'Not ekle', notePh: 'Bu öneri hakkındaki notun', save: 'Kaydet',
+
+  verify: 'Diskte doğrula', verifying: 'Diske karşı kontrol ediliyor…', verified: 'Doğrulandı', notVerified: 'Tam doğrulanmadı: harekete geçmeden önce bak',
+  openApps: 'Uygulamalar ve oyunlarda aç',
+  sysHibernate: 'Hazırda bekletmeyi kapat…', sysAnalyze: 'Bileşen deposunu incele…', sysCleanup: 'Bileşenleri temizle…', sysShadow: 'Geri yükleme noktası alanını göster…',
+  sysTitle: 'Yönetici olarak çalıştırılsın mı?',
+  sysText: 'Windows sadece bu adım için izin ister. Bir konsol penceresi açılır ve sonucu gösterir; Ferahla’nın kendisi yönetici yetkisi olmadan çalışmaya devam eder.',
+  sysRun: 'Devam et', sysStarted: c => `Başlatıldı: ${c}`, sysDeclined: 'Başlatılmadı (izin verilmedi).',
+  apTitle: 'Uygulamalar ve oyunlar', apLede: 'Neler kurulu ve ne kadar yer tutuyor. Kaldırma, uygulamanın kendi kaldırıcısıyla ya da launcher’ıyla yapılır; klasör silinerek asla.',
+  apApps: 'Uygulamalar', apGames: 'Oyunlar', apPublisher: 'Yayıncı', apSettings: 'Windows Uygulamalar ayarları',
+  apUninstall: 'Kaldır…', apSteamRemove: 'Steam’den kaldır…',
+  apConfirmTitle: n => `${n} kaldırılsın mı?`,
+  apConfirmText: 'Uygulamanın kendi kaldırıcısı başlatılır. İzin isteyebilir ve kendi adımları vardır; Ferahla kendisi hiçbir şey silmez.',
+  apConfirmSteam: 'Oyun için Steam’in kaldırma penceresi açılır. Steam kütüphanende kalır; istediğin zaman yeniden kurabilirsin.',
+  apStarted: 'Kaldırıcı başlatıldı. Açılan yeri görmek için sonra yeniden tara.', apFailed: 'Kaldırıcı başlatılamadı. Windows Uygulamalar ayarlarını dene.',
+  apNote: 'Uygulamanın klasörü tarandıysa boyut taramadan gelir; ~ işareti kurulumun kendi tahminidir.',
+  hiCompareWith: 'Karşılaştır', hiSince: d => `${d} tarihinden beri`,
 };
 
 const dicts = { en, tr };

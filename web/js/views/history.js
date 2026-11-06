@@ -4,7 +4,7 @@ import { t } from '../i18n.js';
 import { store, scansOf, cached, dropCache, refreshState } from '../store.js';
 import { post } from '../api.js';
 
-let box, ctxRef;
+let box, ctxRef, fromId = null;
 
 export async function render(container, ctx) {
   box = container; ctxRef = ctx;
@@ -16,7 +16,8 @@ export function onEvent(what) { if (what === 'state') draw(); }
 async function draw() {
   const scans = scansOf(store.root);
   if (!scans.length) { ctxRef.go('overview'); return; }
-  const diff = scans.length > 1 ? await cached('/api/diff?scan=' + scans[0].id) : null;
+  if (fromId && !scans.some(s => s.id === fromId)) fromId = null;
+  const diff = scans.length > 1 ? await cached('/api/diff?scan=' + scans[0].id + (fromId ? '&from=' + encodeURIComponent(fromId) : '')) : null;
   if (!ctxRef.isCurrent()) return;
   clear(box).append(
     h('div.page-head', h('div', h('div.eyebrow', store.root), h('h1.page-title', t('hiTitle')), h('p.page-lede', t('hiLede')))),
@@ -24,7 +25,7 @@ async function draw() {
       scans.length > 1 ? chart([...scans].reverse()) : h('p.muted', t('hiOnlyOne'))),
     h('div.grid.grid-2', { class: 'mt' },
       h('div.card.card-pad', h('div.card-head', icon('history'), h('h2', t('hiScans'))), list(scans)),
-      h('div.card.card-pad', h('div.card-head', icon('layers'), h('h2', t('hiCompare'))), changes(diff))));
+      h('div.card.card-pad', h('div.card-head', icon('layers'), h('h2', t('hiCompare')), scans.length > 2 ? picker(scans) : null), changes(diff))));
   box.querySelector('.mt').style.marginTop = '18px';
 }
 
@@ -70,6 +71,13 @@ function list(scans) {
       meter(s.totalBytes ? (s.totalBytes - s.freeBytes) / max : 0)),
     h('div.i-size', i < scans.length - 1 ? h('small', signed(s.freeBytes - scans[i + 1].freeBytes)) : null,
       h('button.btn.btn-sm.btn-ghost', { onclick: () => remove(s) }, icon('trash'), t('hiDelete'))))));
+}
+
+function picker(scans) {
+  const sel = h('select.select', { 'aria-label': t('hiCompareWith') },
+    scans.slice(1).map((s, i) => h('option', { value: s.id, text: t('hiSince', date(s.scannedAt, false)), selected: fromId ? s.id === fromId : i === 0 })));
+  sel.addEventListener('change', () => { fromId = sel.value; draw(); });
+  return sel;
 }
 
 function changes(diff) {

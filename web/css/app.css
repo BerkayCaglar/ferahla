@@ -529,6 +529,7 @@ button.bar-row:hover { background: var(--surface-2); }
 .table { width: 100%; border-collapse: collapse; }
 .table th { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .table th.r, .table td.r { text-align: right; }
+.table td.num { white-space: nowrap; }
 .table th button { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; display: inline-flex; gap: 4px; align-items: center; }
 .table th button:hover { color: var(--ink); }
 .table th .ico { width: 12px; height: 12px; }
@@ -603,6 +604,16 @@ details.tool summary .spinner { width: 13px; height: 13px; color: var(--accent);
 .ai-note .ai-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
 .ai-note .ai-head .ico { width: 15px; height: 15px; color: var(--accent); }
 .ai-note p { font-size: 13px; margin-top: 4px; color: var(--ink); }
+
+.actions-row { margin-top: 10px; }
+.verify-box { margin-top: 10px; padding: 10px 12px; border-radius: 9px; font-size: 13px; }
+.verify-box b { display: flex; align-items: center; gap: 7px; }
+.verify-box b .ico { width: 16px; height: 16px; }
+.verify-box ul { margin: 6px 0 0; padding-left: 22px; color: var(--ink-2); }
+.verify-box li { overflow-wrap: anywhere; }
+.verify-box.ok { background: var(--safe-bg); } .verify-box.ok b { color: var(--safe); }
+.verify-box.warn { background: var(--review-bg); } .verify-box.warn b { color: var(--review); }
+.card-head .select { font-size: 12.5px; padding: 5px 8px; }
 
 /* ---------- dialogs & toasts ---------- */
 

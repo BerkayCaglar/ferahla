@@ -30,6 +30,7 @@ namespace Ferahla.Core.Json;
 [JsonSerializable(typeof(Quarantine.QuarantineResult))]
 [JsonSerializable(typeof(List<Quarantine.BatchInfo>))]
 [JsonSerializable(typeof(Notes.NoteFile))]
+[JsonSerializable(typeof(Findings.VerifyResult))]
 public sealed partial class FerahlaJson : JsonSerializerContext
 {
     private static FerahlaJson? _relaxed;

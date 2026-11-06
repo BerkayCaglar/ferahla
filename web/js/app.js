@@ -11,6 +11,7 @@ import * as files from './views/files.js';
 import * as quarantine from './views/quarantine.js';
 import * as history from './views/history.js';
 import * as analysis from './views/analysis.js';
+import * as apps from './views/apps.js';
 
 const ROUTES = [
   { id: 'overview', icon: 'overview', label: 'navOverview', view: overview },
@@ -18,6 +19,7 @@ const ROUTES = [
   { id: 'explorer', icon: 'folder', label: 'navExplorer', view: explorer },
   { id: 'files', icon: 'file', label: 'navFiles', view: files },
   { id: 'quarantine', icon: 'box', label: 'navQuarantine', view: quarantine },
+  { id: 'apps', icon: 'apps', label: 'navApps', view: apps },
   { id: 'history', icon: 'history', label: 'navHistory', view: history },
   { id: 'analysis', icon: 'robot', label: 'navAnalysis', view: analysis },
 ];

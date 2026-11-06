@@ -21,6 +21,7 @@ root.Subcommands.Add(QuarantineCommand.Create(json));
 root.Subcommands.Add(RestoreCommand.Create(json));
 root.Subcommands.Add(UiCommand.Create());
 root.Subcommands.Add(NoteCommand.Create(json));
+root.Subcommands.Add(VerifyCommand.Create(json));
 root.Subcommands.Add(McpCommand.Create());
 // No command: the UI.
 root.Options.Add(UiCommand.NoBrowser);

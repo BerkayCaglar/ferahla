@@ -37,7 +37,7 @@ Kurallar [`rules/`](rules) altında JSON olarak, İngilizce ve Türkçe metinler
 ## Kullanım
 
 `ferahla` komutunu çalıştır (ya da `ferahla.exe`'ye çift tıkla), tarayıcında açılır: genel bakış, işaretleyeceğin
-öneriler, treemap'li klasör gezgini, büyük dosyalar, karantina ve geçmiş. Açık ve koyu tema, Türkçe ve İngilizce.
+öneriler, treemap'li klasör gezgini, büyük dosyalar, uygulamalar ve oyunlar, karantina, geçmiş ve isteğe bağlı Claude analizi. Açık ve koyu tema, Türkçe ve İngilizce.
 
 Pencere, `ferahla.exe`'nin kendisinin sunduğu ve sadece `127.0.0.1` üzerinde çalışan yerel bir sayfadır. Her açılışta
 sadece o sekmeye verilen rastgele bir anahtar üretilir; diğer sitelerden gelen istekler reddedilir (host, origin ve
@@ -54,6 +54,8 @@ ferahla diff                 önceki taramadan beri ne büyüdü, ne küçüldü
 ferahla inspect <yol>        bir klasörün boyutu, alt klasörleri ve bulguları
 ferahla report --open        tek dosyalık, salt okunur HTML rapor (tarayıcıda)
 ferahla scans                kayıtlı taramalar
+ferahla verify <bulgu>       bir bulguyu şu anki diskte kontrol et: kopyalar bayt bayt, zip ve klasör CRC-32 ile
+ferahla note <bulgu> <metin>  bir bulguya kendi notunu ekle
 
 ferahla quarantine --plan <dosya> --dry-run   rapordaki "Plan dosyasını indir" ile alınan planı kontrol et
 ferahla quarantine --plan <dosya>             plandakileri karantinaya taşı
@@ -115,7 +117,7 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~5 MB 
 
 ## Yol haritası
 
-1. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
+1. Cila ve ilk sürüm (imzalı dosyalar, winget)
 
 ## Lisans
 

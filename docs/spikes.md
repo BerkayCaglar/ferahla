@@ -12,12 +12,27 @@ Environment: Windows 11, .NET SDK 10 (pinned in `global.json`), Visual Studio 20
 | 3 | Tool isolation | ✅ Only Ferahla's tools; `--safe-mode` can't be used |
 | 4 | `--mcp-config` with an exe | ✅ Works |
 | 12 | Child process environment and stopping | 🟡 Partly: no orphan processes; the API key conflict is to be tested on a clean VM |
-| 9 | Fluent v3 offline + dark theme | ✅ Single file + static theme CSS |
+| 9 | Fluent v3 offline + dark theme | ✅ Works, but not used: the UI uses its own components (see below) |
 | 5 | Restart Manager and folders | 🟡 Files ✅; folder handles (cwd) are not visible |
 | 8 | Writing to a drive root | ✅ Works; the ACL must be narrowed |
-| 6 | Reading RAR | ⏳ |
-| 10 | Launcher uninstall methods | ⏳ |
-| 7 | Shrinking the WSL vhdx | ⏳ |
+| 6 | Reading RAR | ⏭ Decided: not in v1 |
+| 10 | Launcher uninstall methods | ✅ Decided (below) |
+| 7 | Shrinking the WSL vhdx | ⏭ Decided: information only in v1 |
+
+## Decisions taken without a spike (M4)
+
+- **6. RAR:** no RAR reader in v1. SharpCompress (MIT) would add a large dependency whose NativeAOT behaviour isn't
+  proven, for one evidence line. RAR archives next to an extracted folder are still found (by name), at risk *review*
+  with "contents not verified"; zip archives are verified file by file (`ferahla verify`, CRC-32).
+- **7. WSL vhdx:** information only. There is no documented way to shrink a dynamic VHDX without Hyper-V's
+  `Optimize-VHD` (not on Home editions, and not effective on sparse disks). The finding explains where the space is.
+- **10. Launchers:** Steam games are removed with `steam://uninstall/<appid>` (app id from `steamapps/appmanifest_*.acf`
+  in every library of `libraryfolders.vdf`). Riot and EA games register a normal uninstall entry, so they go through
+  the registry `UninstallString` like any app. Epic games have no per-game uninstall entry; the UI points to the Epic
+  launcher and Windows Settings › Apps. Ferahla never deletes a game folder itself.
+- **9 (follow-up). UI components:** the UI uses its own small component set (one stylesheet, design tokens, light and
+  dark) in the visual language of the HTML report, instead of Fluent Web Components: shadow DOM made consistent
+  styling hard, and the plain components keep the page small with a strict CSP.
 
 ---
 

@@ -74,8 +74,8 @@ public sealed class McpVerify
 {
     public string FindingId { get; set; } = "";
     public string Verdict { get; set; } = "";
+    public List<string> Checks { get; set; } = [];
     public List<McpItemCheck> Items { get; set; } = [];
-    public string? DuplicateCheck { get; set; }
 }
 
 public sealed class McpItemCheck

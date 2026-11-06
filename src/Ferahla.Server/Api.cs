@@ -32,7 +32,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         app.MapGet("/api/events", ctx => hub.Stream(ctx, () =>
             $"event: hello\ndata: {JsonSerializer.Serialize(BuildState(), ApiJson.Web.StateDto)}\n\n"));
         app.MapGet("/api/findings", ctx => Guarded(ctx, () => Json(ctx, state.Findings(ctx.Request.Query["scan"]), ApiJson.Web.FindingsResult)));
-        app.MapGet("/api/diff", ctx => Guarded(ctx, () => Json(ctx, state.Diff(ctx.Request.Query["scan"]) ?? new Core.Diff.DiffResult(), ApiJson.Web.DiffResult)));
+        app.MapGet("/api/diff", ctx => Guarded(ctx, () => Json(ctx, state.Diff(ctx.Request.Query["scan"], ctx.Request.Query["from"]) ?? new Core.Diff.DiffResult(), ApiJson.Web.DiffResult)));
         app.MapGet("/api/tree", ctx => Guarded(ctx, () => Json(ctx, Tree(ctx.Request.Query["scan"], ctx.Request.Query["path"]), ApiJson.Web.TreeDto)));
         app.MapGet("/api/files", ctx => Guarded(ctx, () => Json(ctx, Files(ctx.Request.Query["scan"], ctx.Request.Query["kind"]), ApiJson.Web.FilesDto)));
         app.MapGet("/api/quarantine", ctx => Json(ctx, PlanRunner.Engine(state.Store).List(), ApiJson.Web.ListBatchInfo));
@@ -61,6 +61,35 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
             hub.Changed("scans");
             return Json(ctx, new OkDto { Ok = ok }, ApiJson.Web.OkDto);
         }));
+        // ---- deep checks, system actions, apps ----
+        app.MapPost("/api/verify", ctx => Body(ctx, ApiJson.Web.VerifyRequest, async r =>
+        {
+            var f = state.Findings(r.Scan).Findings.FirstOrDefault(x => x.Id == r.FindingId);
+            if (f is null) { await Error(ctx, 404, Lang.T("No such finding", "Böyle bir bulgu yok")); return; }
+            var result = await Task.Run(() => Verifier.Verify(f, ctx.RequestAborted), ctx.RequestAborted);
+            await Json(ctx, result, ApiJson.Web.VerifyResult);
+        }));
+        app.MapPost("/api/system", ctx => Body(ctx, ApiJson.Web.IdRequest, r =>
+        {
+            // Only the fixed actions in SystemActions.All; each asks for elevation itself (UAC).
+            if (SystemActions.Get(r.Id) is not { } a) return Error(ctx, 404, "unknown action");
+            return Json(ctx, new OkDto { Ok = SystemActions.Run(a), Message = a.CommandLine }, ApiJson.Web.OkDto);
+        }));
+        app.MapGet("/api/apps", ctx => Guarded(ctx, async () =>
+        {
+            Snapshot? snap = null;
+            try { snap = state.Scan(ctx.Request.Query["scan"]).Snap; } catch (FileNotFoundException) { }
+            var apps = await Task.Run(() => AppsService.List(snap));
+            await Json(ctx, apps, ApiJson.Web.ListAppEntry);
+        }));
+        app.MapPost("/api/apps/uninstall", ctx => Body(ctx, ApiJson.Web.IdRequest, r =>
+            Json(ctx, new OkDto { Ok = AppsService.Uninstall(r.Id) }, ApiJson.Web.OkDto)));
+        app.MapPost("/api/apps/settings", ctx => Body(ctx, ApiJson.Web.OkDto, _ =>
+        {
+            AppsService.OpenAppsSettings();
+            return Json(ctx, new OkDto(), ApiJson.Web.OkDto);
+        }));
+
         // ---- Claude analysis (optional; Ferahla works fully without it) ----
         app.MapGet("/api/analysis", async ctx => await Json(ctx, analysis.State(await analysis.InfoAsync()), AnalysisJson.Web.AnalysisDto));
         app.MapPost("/api/analysis/refresh", ctx => Body(ctx, ApiJson.Web.OkDto, async _ =>

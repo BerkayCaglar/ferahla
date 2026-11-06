@@ -1,6 +1,7 @@
 # Ferahla: notes for Claude sessions
 
-Ferahla is an open-source Windows disk scanner and safe-cleanup tool: one NativeAOT exe (.NET 10) that serves a local web UI, a CLI and an MCP server. Done: M0 spikes (results in `docs/spikes.md`), M1 (scan, rules, findings, report), M2a (quarantine CLI), M2b (local server + UI), M3 (Claude analysis over MCP). Next: M4 deep checks, a UI polish pass, M5 release.
+Ferahla is an open-source Windows disk scanner and safe-cleanup tool: one NativeAOT exe (.NET 10) that serves a local web UI, a CLI and an MCP server. Done: M0 spikes (results in `docs/spikes.md`), M1 (scan, rules, findings, report), M2a (quarantine CLI), M2b (local server + UI), M3 (Claude analysis over MCP), M4 (verify, system actions, apps & games, history compare). Next: a UI polish pass, then M5 release.
+System actions are a fixed allowlist in `Windows/SystemActions.cs` (elevated per step; never `/ResetBase`); apps are removed only through their own uninstaller or the launcher (`AppsService`).
 
 ## Privacy: nothing about the owner goes into this repo
 

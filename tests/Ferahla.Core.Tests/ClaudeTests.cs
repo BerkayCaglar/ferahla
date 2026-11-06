@@ -149,7 +149,7 @@ public sealed class McpToolTests : IDisposable
         Assert.Contains("not in this scan", Tools.Inspect(@"Z:\elsewhere").Error, StringComparison.OrdinalIgnoreCase);
 
         var v = Tools.Verify(f.Id);
-        Assert.Equal("all items still exist", v.Verdict);
+        Assert.Equal("verified", v.Verdict);
         Assert.Equal("unknown finding id", Tools.Verify("f-0000000000").Verdict);
 
         Assert.True(Tools.Note(f.Id, "Dependencies; npm install brings them back.", "remove").Saved);

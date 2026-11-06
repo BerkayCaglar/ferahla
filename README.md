@@ -37,7 +37,7 @@ Rules live in [`rules/`](rules) as JSON, with English and Turkish texts.
 ## Usage
 
 Run `ferahla` (or double-click `ferahla.exe`) and it opens in your browser: overview, suggestions to tick, a folder
-explorer with a treemap, large files, quarantine and history. Light and dark, English and Turkish.
+explorer with a treemap, large files, apps and games, quarantine, history and an optional Claude analysis. Light and dark, English and Turkish.
 
 The window is a local page served by `ferahla.exe` itself, on `127.0.0.1` only. Every launch makes a random key that
 only that browser tab gets, and requests from other sites are refused (host, origin and fetch-metadata checks), so a
@@ -53,6 +53,8 @@ ferahla diff                 what grew or shrank since the previous scan
 ferahla inspect <path>       size, subfolders and findings for one folder
 ferahla report --open        a single-file, read-only HTML report in your browser
 ferahla scans                saved scans
+ferahla verify <finding>     check a finding on disk now: duplicates byte by byte, zip vs folder by CRC-32
+ferahla note <finding> <text>  add your own note to a finding
 
 ferahla quarantine --plan <file> --dry-run   check a plan from the report's "Download plan file"
 ferahla quarantine --plan <file>             move its items into quarantine
@@ -112,7 +114,7 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a sing
 
 ## Roadmap
 
-1. Deeper checks, system actions, apps and games pages, history
+1. Polish and the first release (signed binaries, winget)
 
 ## License
 

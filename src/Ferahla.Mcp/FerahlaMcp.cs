@@ -191,71 +191,15 @@ internal static class Tools
         var (_, _, f, _) = Session.Get();
         var x = f.Findings.FirstOrDefault(y => y.Id == findingId?.Trim());
         if (x is null) return new McpVerify { FindingId = findingId ?? "", Verdict = "unknown finding id" };
-        var v = new McpVerify { FindingId = x.Id };
-        foreach (var i in x.Items.Take(20))
+        var r = Verifier.Verify(x);
+        return new McpVerify
         {
-            var exists = i.IsDir ? Directory.Exists(i.Path) : File.Exists(i.Path);
-            var check = new McpItemCheck { Path = i.Path, Exists = exists, ScanMb = Mb(i.Bytes) };
-            if (exists)
-            {
-                try
-                {
-                    if (i.IsDir)
-                    {
-                        long bytes = 0; DateTime newest = default; var n = 0;
-                        foreach (var fi in new DirectoryInfo(i.Path).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }))
-                        {
-                            bytes += fi.Length; if (fi.LastWriteTimeUtc > newest) newest = fi.LastWriteTimeUtc;
-                            if (++n > 200_000) { check.Note = "stopped counting after 200,000 files"; break; }
-                        }
-                        check.NowMb = Mb(bytes); check.LastChange = newest == default ? null : newest.ToString("yyyy-MM-dd HH:mm");
-                    }
-                    else
-                    {
-                        var fi = new FileInfo(i.Path);
-                        check.NowMb = Mb(fi.Length); check.LastChange = fi.LastWriteTimeUtc.ToString("yyyy-MM-dd HH:mm");
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { check.Note = ex.Message; }
-            }
-            v.Items.Add(check);
-        }
-        if (x.Category == "duplicate") v.DuplicateCheck = CompareDuplicates(x);
-        v.Verdict = v.Items.All(i => i.Exists) ? "all items still exist" : v.Items.Any(i => i.Exists) ? "some items are gone" : "all items are gone";
-        return v;
+            FindingId = x.Id,
+            Verdict = r.Ok ? "verified" : "not fully verified",
+            Checks = r.Checks,
+            Items = r.Items.Select(i => new McpItemCheck { Path = i.Path, Exists = i.Exists, ScanMb = Mb(i.ScanBytes), NowMb = i.NowBytes is long b ? Mb(b) : null, LastChange = i.LastWriteUtc?.ToString("yyyy-MM-dd HH:mm"), Note = i.Note }).ToList(),
+        };
     }
-
-    /// <summary>The kept file is named in the evidence; each copy is compared with it in full.</summary>
-    private static string CompareDuplicates(Finding x)
-    {
-        var kept = x.Evidence.Select(e => { var i = e.IndexOf(':'); return i > 0 ? e[(i + 1)..].Trim() : null; })
-            .FirstOrDefault(p => p is not null && p.Length > 3 && p[1] == ':' && File.Exists(p));
-        if (kept is null) return "kept copy not found; cannot compare";
-        var results = new List<string>();
-        foreach (var i in x.Items.Where(i => !i.IsDir).Take(5))
-        {
-            if (!File.Exists(i.Path)) { results.Add($"{Path.GetFileName(i.Path)}: gone"); continue; }
-            results.Add($"{Path.GetFileName(i.Path)}: " + (SameContent(kept, i.Path) ? "identical to the kept copy" : "DIFFERENT from the kept copy"));
-        }
-        return string.Join("; ", results);
-    }
-
-    private static bool SameContent(string a, string b)
-    {
-        using var fa = new FileStream(a, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 16);
-        using var fb = new FileStream(b, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 16);
-        if (fa.Length != fb.Length) return false;
-        var ba = new byte[1 << 20]; var bb = new byte[1 << 20];
-        while (true)
-        {
-            var na = fa.ReadAtLeast(ba, ba.Length, throwOnEndOfStream: false);
-            var nb = fb.ReadAtLeast(bb, bb.Length, throwOnEndOfStream: false);
-            if (na != nb) return false;
-            if (na == 0) return true;
-            if (!ba.AsSpan(0, na).SequenceEqual(bb.AsSpan(0, nb))) return false;
-        }
-    }
-
     public static McpDiff Diff(double minMb)
     {
         var (snap, _, _, prev) = Session.Get();
