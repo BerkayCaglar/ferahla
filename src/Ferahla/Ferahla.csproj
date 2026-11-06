@@ -7,7 +7,6 @@
     <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishAot>true</PublishAot>
-    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Ferahla.Core\Ferahla.Core.csproj" />
     <ProjectReference Include="..\Ferahla.Windows\Ferahla.Windows.csproj" />
+    <ProjectReference Include="..\Ferahla.Server\Ferahla.Server.csproj" />
   </ItemGroup>
 
 </Project>

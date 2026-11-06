@@ -4,8 +4,8 @@
 
 [English](README.md)
 
-> **Durum: erken geliştirme.** Ferahla bir sürücüyü tarayıp bulduklarını açıklayabiliyor ve seçtiklerini komut
-> satırından geri alınabilir bir karantinaya taşıyabiliyor. Sırada tarayıcı arayüzü var. Henüz sürüm yok: kaynaktan derle.
+> **Durum: erken geliştirme.** Ferahla bir sürücüyü tarar, bulduklarını açıklar ve seçtiklerini geri alınabilir bir
+> karantinaya taşır; tarayıcı penceresinden ya da komut satırından. Henüz sürüm yok: kaynaktan derle.
 
 Çoğu disk temizleyici büyük klasörleri gösterir, gerisi sana kalır. Ferahla her öneri için şunu söyler:
 
@@ -35,6 +35,16 @@ bir şeyi elle silmek için hiçbir zaman önermez.
 Kurallar [`rules/`](rules) altında JSON olarak, İngilizce ve Türkçe metinlerle duruyor.
 
 ## Kullanım
+
+`ferahla` komutunu çalıştır (ya da `ferahla.exe`'ye çift tıkla), tarayıcında açılır: genel bakış, işaretleyeceğin
+öneriler, treemap'li klasör gezgini, büyük dosyalar, karantina ve geçmiş. Açık ve koyu tema, Türkçe ve İngilizce.
+
+Pencere, `ferahla.exe`'nin kendisinin sunduğu ve sadece `127.0.0.1` üzerinde çalışan yerel bir sayfadır. Her açılışta
+sadece o sekmeye verilen rastgele bir anahtar üretilir; diğer sitelerden gelen istekler reddedilir (host, origin ve
+fetch-metadata kontrolleri). Böylece ziyaret ettiğin bir web sayfası Ferahla ile konuşamaz. Son sekme kapandıktan birkaç
+dakika sonra kendiliğinden kapanır.
+
+Her şey komut satırında da var:
 
 ```
 ferahla scan                 sistem sürücüsünü tara (ya da: ferahla scan D:)
@@ -67,7 +77,7 @@ sildiğinde açılır. O zamana kadar `ferahla restore` her şeyi geri koyar.
 - Karantina, Ferahla'nın verisinin olduğu sürücüde `%LOCALAPPDATA%\Ferahla\quarantine` altında; diğer sürücülerde
   sadece senin, SYSTEM'in ve Administrators'ın açabildiği gizli `X:\.ferahla\quarantine` klasöründe durur. Sadece sabit
   NTFS/ReFS sürücüler; USB ve ağ sürücülerinde sadece bilgi gösterilir.
-- Kalıcı silme bilerek bir komut değil; arayüzde bir buton olacak.
+- Kalıcı silme bilerek bir komut değil: pencerede, onay isteyen bir buton.
 
 Birkaç milyon dosyalı bir sürücünün tam taraması ilk seferde yaklaşık bir dakika, sonrasında bir dakikadan çok daha kısa
 sürer. Taramalar `%LOCALAPPDATA%\Ferahla\scans` altında saklanır.
@@ -90,9 +100,8 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~5 MB 
 
 ## Yol haritası
 
-1. Aynı raporu canlı gösteren yerel tarayıcı arayüzü: seç, karantinaya al, geri al, kalıcı sil
-2. İsteğe bağlı: kendi Claude Code kurulumunla analiz; notlar rapora yazılır
-3. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
+1. İsteğe bağlı: kendi Claude Code kurulumunla analiz; notlar rapora yazılır
+2. Derin kontroller, sistem işlemleri, uygulamalar ve oyunlar sayfaları, geçmiş
 
 ## Lisans
 

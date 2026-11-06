@@ -32,6 +32,7 @@ public sealed class SnapshotStore(string home)
         using (var gz = new GZipStream(fs, CompressionLevel.Optimal))
             JsonSerializer.Serialize(gz, snapshot, FerahlaJson.Default.Snapshot);
         File.Move(tmp, path, overwrite: true);
+        WriteMeta(snapshot);
         return path;
     }
 
@@ -60,6 +61,54 @@ public sealed class SnapshotStore(string home)
     }
 
     public string? Latest(string? root = null) => List(root).FirstOrDefault();
+
+    public const string MetaExtension = ".meta.json";
+
+    public static Cli.ScanListItem Meta(Snapshot s) => new()
+    {
+        Id = s.Id, Root = s.Root, ScannedAt = s.ScannedAt, FreeBytes = s.Volume.FreeBytes, TotalBytes = s.Volume.TotalBytes,
+        ScannedBytes = s.Stats.ScannedBytes, Files = s.Stats.Files, ElapsedSeconds = s.ElapsedSeconds,
+    };
+
+    private void WriteMeta(Snapshot s) =>
+        File.WriteAllBytes(Path.Combine(ScansDir, s.Id + MetaExtension), JsonSerializer.SerializeToUtf8Bytes(Meta(s), FerahlaJson.Default.ScanListItem));
+
+    /// <summary>
+    /// Summaries of the saved scans, newest first, without loading the snapshots (a small sidecar per scan;
+    /// older scans without one are loaded once and get it). Unreadable scans are left out.
+    /// </summary>
+    public List<Cli.ScanListItem> ListMeta(string? root = null)
+    {
+        var list = new List<Cli.ScanListItem>();
+        foreach (var id in List(root))
+        {
+            var meta = Path.Combine(ScansDir, id + MetaExtension);
+            try
+            {
+                if (File.Exists(meta) && JsonSerializer.Deserialize(File.ReadAllBytes(meta), FerahlaJson.Default.ScanListItem) is { } m)
+                {
+                    list.Add(m);
+                    continue;
+                }
+                var s = Load(id);
+                try { WriteMeta(s); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                list.Add(Meta(s));
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or UnauthorizedAccessException) { }
+        }
+        return list;
+    }
+
+    /// <summary>Removes a saved scan and its sidecar.</summary>
+    public bool Delete(string id)
+    {
+        if (id.Length == 0 || !id.All(c => char.IsAsciiLetterOrDigit(c) || c == '-')) return false;
+        var path = Path.Combine(ScansDir, id + Extension);
+        if (!File.Exists(path)) return false;
+        File.Delete(path);
+        File.Delete(Path.Combine(ScansDir, id + MetaExtension));
+        return true;
+    }
 
     /// <summary>Id like <c>20261106T203000Z-C</c>.</summary>
     public static string NewId(DateTimeOffset at, string root) =>

@@ -19,5 +19,10 @@ root.Subcommands.Add(InspectCommand.Create(json));
 root.Subcommands.Add(ReportCommand.Create(json));
 root.Subcommands.Add(QuarantineCommand.Create(json));
 root.Subcommands.Add(RestoreCommand.Create(json));
+root.Subcommands.Add(UiCommand.Create());
+// No command: the UI.
+root.Options.Add(UiCommand.NoBrowser);
+root.Options.Add(UiCommand.Port);
+root.SetAction((pr, ct) => UiCommand.Run(pr.GetValue(UiCommand.NoBrowser), pr.GetValue(UiCommand.Port), ct));
 
-return root.Parse(args).Invoke();
+return await root.Parse(args).InvokeAsync();

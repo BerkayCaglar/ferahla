@@ -108,7 +108,7 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
         finally
         {
             foreach (var b in batches.Values)
-                if (!b.Manifest.Items.Any(e => e.State != EntryState.Restored)) DeleteEmptyBatch(b.Dir);
+                if (b.Manifest.Items.All(IsGone)) DeleteEmptyBatch(b.Dir);
         }
         if (!dryRun && batches.Values.Any(b => b.Manifest.Items.Count > 0)) result.Batch = batchId;
         return result;
@@ -228,17 +228,27 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
 
     // ---- restore ----
 
-    /// <exception cref="FileNotFoundException">No such batch.</exception>
-    public QuarantineResult Restore(string batchId, bool dryRun, Action<string>? progress = null)
+    private static bool IsGone(QuarantineEntry e) => e.State is EntryState.Restored or EntryState.Deleted;
+
+    private static string KeyOf(QuarantineManifest m, QuarantineEntry e) => $"{m.Volume[..1]}{e.N}";
+
+    private List<Batch> Find(string batchId)
     {
         if (!IsBatchId(batchId)) throw new ArgumentException(Lang.T($"Not a batch id: {batchId}", $"Geçerli bir karantina kimliği değil: {batchId}"));
         var found = Load(batchId);
         if (found.Count == 0) throw new FileNotFoundException(Lang.T($"No quarantine batch {batchId}", $"{batchId} karantina kaydı yok"));
+        return found;
+    }
 
+    /// <param name="keys">Only these entries (<see cref="BatchEntry.Key"/>); null for the whole batch.</param>
+    /// <exception cref="FileNotFoundException">No such batch.</exception>
+    public QuarantineResult Restore(string batchId, bool dryRun, Action<string>? progress = null, IReadOnlySet<string>? keys = null)
+    {
+        var found = Find(batchId);
         var result = new QuarantineResult { DryRun = dryRun, Batch = batchId };
         foreach (var b in found)
         {
-            foreach (var e in b.Manifest.Items.Where(e => e.State != EntryState.Restored).ToList())
+            foreach (var e in b.Manifest.Items.Where(e => !IsGone(e) && (keys is null || keys.Contains(KeyOf(b.Manifest, e)))).ToList())
             {
                 progress?.Invoke(e.OriginalPath);
                 var o = new ItemOutcome { Path = e.OriginalPath, FindingId = e.FindingId, Bytes = e.Bytes };
@@ -272,7 +282,50 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
                 o.Status = OutcomeStatus.Restored;
                 result.Add(o);
             }
-            if (!dryRun && b.Manifest.Items.All(e => e.State == EntryState.Restored)) DeleteEmptyBatch(b.Dir);
+            if (!dryRun && b.Manifest.Items.All(IsGone)) DeleteEmptyBatch(b.Dir);
+        }
+        return result;
+    }
+
+    // ---- delete for good (UI only; deliberately not reachable from the CLI or MCP) ----
+
+    public QuarantineResult Delete(string batchId, IReadOnlySet<string>? keys = null, Action<string>? progress = null)
+    {
+        var result = new QuarantineResult { Batch = batchId };
+        foreach (var b in Find(batchId))
+        {
+            foreach (var e in b.Manifest.Items.Where(e => !IsGone(e) && (keys is null || keys.Contains(KeyOf(b.Manifest, e)))).ToList())
+            {
+                progress?.Invoke(e.OriginalPath);
+                var o = new ItemOutcome { Path = e.OriginalPath, FindingId = e.FindingId, Bytes = e.Bytes };
+                var stored = Path.GetFullPath(Path.Combine(b.Dir, e.StoredPath));
+                var slot = Path.GetDirectoryName(stored)!;
+                // Only ever inside this batch's own slot folder.
+                if (!PathUtil.IsUnder(stored, Path.Combine(b.Dir, "items")) || PathUtil.Normalize(stored) == PathUtil.Normalize(Path.Combine(b.Dir, "items")))
+                {
+                    result.Add(Fail(o, Lang.T("The manifest entry is not valid", "Manifest kaydı geçersiz")));
+                    continue;
+                }
+                try
+                {
+                    var attrs = File.GetAttributes(stored);
+                    if ((attrs & FileAttributes.Directory) != 0 && (attrs & FileAttributes.ReparsePoint) == 0) DeleteTree(stored);
+                    else DeleteEntry(stored, attrs);
+                }
+                catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { } // already gone
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    result.Add(Fail(o, Lang.T($"Could not delete everything: {ex.Message}", $"Hepsi silinemedi: {ex.Message}")));
+                    continue;
+                }
+                e.State = EntryState.Deleted;
+                e.DeletedAt = _now();
+                b.Save();
+                TryDeleteEmpty(slot);
+                o.Status = OutcomeStatus.Deleted;
+                result.Add(o);
+            }
+            if (b.Manifest.Items.All(IsGone)) DeleteEmptyBatch(b.Dir);
         }
         return result;
     }
@@ -293,8 +346,14 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
                 foreach (var e in b.Manifest.Items)
                 {
                     if (e.State == EntryState.Restored) { info.Restored++; continue; }
+                    if (e.State == EntryState.Deleted) { info.Deleted++; continue; }
                     info.Items++;
                     info.Bytes += e.Bytes;
+                    info.Entries.Add(new BatchEntry
+                    {
+                        Key = KeyOf(b.Manifest, e), Volume = b.Manifest.Volume, OriginalPath = e.OriginalPath, IsDir = e.IsDir,
+                        Bytes = e.Bytes, Files = e.Files, FindingId = e.FindingId, RuleId = e.RuleId, MovedAt = e.MovedAt,
+                    });
                 }
             }
         return map.Values.OrderByDescending(b => b.Batch, StringComparer.Ordinal).ToList();
@@ -352,6 +411,32 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
     }
 
     private static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
+
+    /// <summary>
+    /// Deletes a real directory bottom-up. A junction or symlink inside is removed as a link: its target lies
+    /// outside the quarantine and is never entered or changed. Read-only attributes are cleared first.
+    /// </summary>
+    private static void DeleteTree(string dir)
+    {
+        var entries = new FileSystemEnumerable<(string Path, FileAttributes Attr)>(dir,
+            (ref FileSystemEntry x) => (x.ToFullPath(), x.Attributes),
+            new EnumerationOptions { RecurseSubdirectories = false, AttributesToSkip = 0, IgnoreInaccessible = false }).ToList();
+        foreach (var (path, attr) in entries)
+        {
+            if ((attr & FileAttributes.Directory) != 0 && (attr & FileAttributes.ReparsePoint) == 0) DeleteTree(path);
+            else DeleteEntry(path, attr);
+        }
+        DeleteEntry(dir, File.GetAttributes(dir));
+    }
+
+    /// <summary>A file, an empty directory, or a link (directory or file); never what a link points to.</summary>
+    private static void DeleteEntry(string path, FileAttributes attr)
+    {
+        var ext = Native.ExtendedPath(path);
+        if ((attr & FileAttributes.ReadOnly) != 0) File.SetAttributes(ext, attr & ~FileAttributes.ReadOnly);
+        if ((attr & FileAttributes.Directory) != 0) Directory.Delete(ext, recursive: false);
+        else File.Delete(ext);
+    }
 
     private static ItemOutcome Skip(ItemOutcome o, string reason) { o.Status = OutcomeStatus.Skipped; o.Reason = reason; return o; }
     private static ItemOutcome Fail(ItemOutcome o, string reason) { o.Status = OutcomeStatus.Failed; o.Reason = reason; return o; }

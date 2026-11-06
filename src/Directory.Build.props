@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+    <!-- One version for every assembly; the release workflow overrides it from the tag -->
+    <Version>0.2.0</Version>
     <IsAotCompatible>true</IsAotCompatible>
     <!-- Every warning breaks the build, AOT/trim warnings included -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

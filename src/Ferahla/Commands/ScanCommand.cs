@@ -34,10 +34,7 @@ internal static class ScanCommand
     private static int Run(string? target, int minDirMb, bool json)
     {
         var known = SystemInfo.KnownFolders();
-        target ??= known.GetValueOrDefault("SystemDrive", @"C:\");
-        // "C:" alone means "current directory on C" to Windows; users mean the drive.
-        if (target.Length == 2 && target[1] == ':') target += "\\";
-        var root = PathUtil.Normalize(Path.GetFullPath(target));
+        var root = ScanService.ResolveRoot(target, known);
         if (!Directory.Exists(root))
             return Output.Error(json, Lang.T($"Not found: {root}", $"Bulunamadı: {root}"), code: ExitCodes.NotFound);
 
@@ -45,37 +42,16 @@ internal static class ScanCommand
         var progress = new Progress<ScanProgress>(p => Output.Status(Lang.T(
             $"Scanning… {Fmt.Count(p.Files, c)} files, {Fmt.Size(p.Bytes, c)}  {p.Current}",
             $"Taranıyor… {Fmt.Count(p.Files, c)} dosya, {Fmt.Size(p.Bytes, c)}  {p.Current}")));
-        var scanner = new Scanner(new ScanOptions
-        {
-            Root = root,
-            MinDirBytes = Math.Max(0, minDirMb) * (1L << 20),
-            KnownFolders = known,
-            Progress = progress,
-        });
         Snapshot snap;
+        ScanSummary summary;
         try
         {
-            snap = scanner.Run();
+            (snap, summary) = ScanService.Run(root, SnapshotStore.Default(), known, Math.Max(0, minDirMb) * (1L << 20), progress);
         }
         finally
         {
             Output.EndStatus();
         }
-        snap.Volume = SystemInfo.Volume(PathUtil.Normalize(root[..3]));
-        snap.Apps = SystemInfo.InstalledApps();
-
-        var store = SnapshotStore.Default();
-        var saved = store.Save(snap);
-        var used = snap.Volume.TotalBytes - snap.Volume.FreeBytes;
-        var summary = new ScanSummary
-        {
-            Id = snap.Id, Root = snap.Root, SavedTo = saved, ScannedAt = snap.ScannedAt, ElapsedSeconds = snap.ElapsedSeconds,
-            TotalBytes = snap.Volume.TotalBytes, FreeBytes = snap.Volume.FreeBytes, ScannedBytes = snap.Stats.ScannedBytes,
-            UnaccountedBytes = root.Length == 3 ? used - snap.Stats.ScannedBytes : 0,
-            Files = snap.Stats.Files, Dirs = snap.Stats.Dirs, KeptDirs = snap.Dirs.Count, KeptFiles = snap.Files.Count,
-            AccessDeniedDirs = snap.Stats.AccessDeniedDirs, ReparsePointsSkipped = snap.Stats.ReparsePointsSkipped,
-            CloudOnlyBytes = snap.Stats.CloudOnlyBytes, InstalledApps = snap.Apps.Count,
-        };
         if (json)
         {
             Output.Json(summary, FerahlaJson.Indented.ScanSummary);
@@ -117,19 +93,7 @@ internal static class ScansCommand
     private static int Run(bool json)
     {
         var store = SnapshotStore.Default();
-        var items = new List<ScanListItem>();
-        foreach (var id in store.List())
-        {
-            try
-            {
-                var s = store.Load(id);
-                items.Add(new ScanListItem { Id = s.Id, Root = s.Root, ScannedAt = s.ScannedAt, FreeBytes = s.Volume.FreeBytes, ScannedBytes = s.Stats.ScannedBytes });
-            }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException)
-            {
-                // A broken file must not hide the others.
-            }
-        }
+        var items = store.ListMeta(); // a broken file never hides the others
         if (json) { Output.Json(items, FerahlaJson.Indented.ListScanListItem); return ExitCodes.Ok; }
         var c = Lang.Culture;
         if (items.Count == 0) Console.WriteLine(Lang.T("No scans yet. Run: ferahla scan", "Henüz tarama yok. Çalıştır: ferahla scan"));

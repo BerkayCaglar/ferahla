@@ -5,7 +5,6 @@ using Ferahla.Core.Json;
 using Ferahla.Core.Quarantine;
 using Ferahla.Core.Storage;
 using Ferahla.Core.Text;
-using Ferahla.Windows;
 using Ferahla.Windows.Quarantine;
 
 namespace Ferahla.Commands;
@@ -27,17 +26,7 @@ internal static class QuarantineCommand
         return cmd;
     }
 
-    /// <summary>The guard knows this machine's folders now, plus the scan's (in case they moved since).</summary>
-    internal static MoveGuard Guard(SnapshotStore store, Core.Model.Snapshot? snap = null)
-    {
-        var folders = new Dictionary<string, string>(SystemInfo.KnownFolders(), StringComparer.OrdinalIgnoreCase);
-        var i = 0;
-        foreach (var (k, v) in snap?.KnownFolders ?? []) folders[$"scan{i++}:{k}"] = v;
-        return new MoveGuard(folders, store.Home);
-    }
-
-    internal static QuarantineEngine Engine(SnapshotStore store, MoveGuard? guard = null) =>
-        new(store.Home, guard ?? Guard(store));
+    internal static QuarantineEngine Engine(SnapshotStore store) => PlanRunner.Engine(store);
 
     private static int Run(string? planFile, bool dryRun, bool json)
     {
@@ -64,15 +53,8 @@ internal static class QuarantineCommand
         var store = SnapshotStore.Default();
         if (!Scans.TryLoad(store, plan.ScanId, json, out var snap, out var code)) return code;
         if (!json) Output.Status(Lang.T("Checking the plan against the current findings…", "Plan güncel bulgularla karşılaştırılıyor…"));
-        var findings = FindingsCommand.Run(snap, Scans.Previous(store, snap));
-        var guard = Guard(store, snap);
-        var rejected = new List<ItemOutcome>();
-        var moves = PlanValidator.Validate(plan, findings, guard, rejected);
-        var engine = Engine(store, guard);
-
-        var result = engine.Quarantine(moves, snap.Id, dryRun, json ? null : p => Output.Status((dryRun ? "… " : "→ ") + p));
+        var result = PlanRunner.Run(plan, snap, store, dryRun, json ? null : p => Output.Status((dryRun ? "… " : "→ ") + p));
         if (!json) Output.EndStatus();
-        foreach (var r in rejected) result.Add(r);
         return Report(result, json, restore: false);
     }
 

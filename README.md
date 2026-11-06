@@ -4,8 +4,8 @@
 
 [Türkçe](README.tr.md)
 
-> **Status: early development.** Ferahla can scan a drive, explain what it finds, and move what you select into an
-> undoable quarantine from the command line. The browser UI is next. There are no releases yet: build from source.
+> **Status: early development.** Ferahla scans a drive, explains what it finds, and moves what you select into an
+> undoable quarantine, from its browser window or the command line. There are no releases yet: build from source.
 
 Most disk cleaners show you big folders, and the rest is up to you. Ferahla tells you for each suggestion:
 
@@ -35,6 +35,15 @@ Program Files for removal by hand.
 Rules live in [`rules/`](rules) as JSON, with English and Turkish texts.
 
 ## Usage
+
+Run `ferahla` (or double-click `ferahla.exe`) and it opens in your browser: overview, suggestions to tick, a folder
+explorer with a treemap, large files, quarantine and history. Light and dark, English and Turkish.
+
+The window is a local page served by `ferahla.exe` itself, on `127.0.0.1` only. Every launch makes a random key that
+only that browser tab gets, and requests from other sites are refused (host, origin and fetch-metadata checks), so a
+web page you visit can't talk to Ferahla. It closes a few minutes after the last tab.
+
+Everything is also on the command line:
 
 ```
 ferahla scan                 scan the system drive (or: ferahla scan D:)
@@ -66,7 +75,7 @@ space the moment you delete them for good. Until then `ferahla restore` puts eve
 - Quarantine lives in `%LOCALAPPDATA%\Ferahla\quarantine` for the drive that holds it, and in a hidden
   `X:\.ferahla\quarantine` that only you, SYSTEM and Administrators can open on other drives. Only fixed NTFS/ReFS
   drives; USB and network drives are information only.
-- Deleting for good is deliberately not a command. It will be a button in the UI.
+- Deleting for good is deliberately not a command: it is a button in the window, behind a confirmation.
 
 A full scan of a drive with a few million files takes about a minute the first time and well under a minute after
 that. Scans are saved under `%LOCALAPPDATA%\Ferahla\scans`.
@@ -89,9 +98,8 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a sing
 
 ## Roadmap
 
-1. A local browser UI with the same report, live: select, quarantine, undo, delete for good
-2. Optional analysis with your own Claude Code installation, writing notes into the report
-3. Deeper checks, system actions, apps and games pages, history
+1. Optional analysis with your own Claude Code installation, writing notes into the report
+2. Deeper checks, system actions, apps and games pages, history
 
 ## License
 

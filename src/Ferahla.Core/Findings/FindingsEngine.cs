@@ -111,6 +111,16 @@ public sealed class FindingsEngine
             }
         }
 
+        // Detectors that look at machine-wide places (SDKs, CLI versions) must not reach outside a folder scan.
+        var root = PathUtil.Normalize(snapshot.Root);
+        findings.RemoveAll(f =>
+        {
+            var had = f.Items.Count > 0;
+            f.Items.RemoveAll(i => !PathUtil.IsUnder(i.Path, root));
+            // item-less findings are about the machine (installed apps, hibernation, unseen space), not a folder
+            return f.Items.Count == 0 && (had || root.Length > 3);
+        });
+
         var notSuggested = new List<ProtectedNote>();
         findings = Guard(findings, ctx, notSuggested);
         Dedupe(findings);

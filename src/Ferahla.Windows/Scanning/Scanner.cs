@@ -17,6 +17,7 @@ public sealed class ScanOptions
     public int MaxDegreeOfParallelism { get; init; } = Math.Max(2, Environment.ProcessorCount);
     public IReadOnlyDictionary<string, string>? KnownFolders { get; init; }
     public IProgress<ScanProgress>? Progress { get; init; }
+    public CancellationToken Cancellation { get; init; }
 }
 
 public readonly record struct ScanProgress(long Files, long Dirs, long Bytes, string? Current);
@@ -51,7 +52,11 @@ public sealed class Scanner
         var sw = Stopwatch.StartNew();
         var started = DateTimeOffset.Now;
         var root = new Node(null, _root, _classifier.ContextFor(_root, null));
-        ScanDir(root, _root, 0);
+        try { ScanDir(root, _root, 0); }
+        catch (AggregateException ae) when (ae.Flatten().InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            throw new OperationCanceledException(_o.Cancellation);
+        }
         sw.Stop();
 
         var snap = new Snapshot
@@ -78,6 +83,7 @@ public sealed class Scanner
 
     private void ScanDir(Node node, string path, int depth)
     {
+        _o.Cancellation.ThrowIfCancellationRequested();
         Interlocked.Increment(ref _dirs);
         List<(string Name, FileAttributes Attr)>? subdirs = null;
         try

@@ -5,7 +5,6 @@ using Ferahla.Core.Json;
 using Ferahla.Core.Rules;
 using Ferahla.Core.Storage;
 using Ferahla.Core.Text;
-using Ferahla.Windows.Detectors;
 
 namespace Ferahla.Commands;
 
@@ -31,7 +30,7 @@ internal static class FindingsCommand
     }
 
     internal static FindingsResult Run(Core.Model.Snapshot snap, Core.Model.Snapshot? prev, bool includePending = false) =>
-        new FindingsEngine(RuleLoader.LoadBuiltIn(includePending), BuiltInDetectors.All()).Run(snap, prev);
+        Windows.FindingsService.Compute(snap, prev, includePending);
 
     private static int Run(string? scanId, string? riskFilter, bool all, bool includePending, bool json)
     {

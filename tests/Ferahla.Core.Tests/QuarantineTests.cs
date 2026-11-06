@@ -278,6 +278,55 @@ public sealed class QuarantineEngineTests : IDisposable
     }
 
     [Fact]
+    public void Restore_and_delete_single_entries()
+    {
+        var a = _t.File("data\\a.bin", 10);
+        var b = _t.File("data\\b.bin", 20);
+        var c = _t.Dir("data\\c");
+        File.SetAttributes(_t.File("data\\c\\ro.bin", 30), FileAttributes.ReadOnly);
+        File.SetAttributes(_t.Dir("data\\c\\ro-dir"), FileAttributes.ReadOnly | FileAttributes.Directory);
+        var r = _engine.Quarantine([Move(a, false), Move(b, false), Move(c, true)], null, dryRun: false);
+        var entries = Assert.Single(_engine.List()).Entries;
+        var keyOf = (string p) => entries.Single(e => e.OriginalPath == Core.PathUtil.Normalize(p)).Key;
+
+        Assert.Equal(1, _engine.Restore(r.Batch!, false, keys: new HashSet<string> { keyOf(a) }).Done);
+        Assert.True(File.Exists(a));
+        var del = _engine.Delete(r.Batch!, new HashSet<string> { keyOf(c) });
+        Assert.Equal(OutcomeStatus.Deleted, Assert.Single(del.Items).Status);
+        Assert.False(Directory.Exists(c));
+
+        var left = Assert.Single(_engine.List());
+        Assert.Equal(20, left.Bytes);
+        Assert.Equal(1, left.Restored);
+        Assert.Equal(1, left.Deleted);
+        _engine.Delete(r.Batch!);
+        Assert.Empty(_engine.List());
+        Assert.False(File.Exists(b));
+    }
+
+    [Fact]
+    public void Delete_never_follows_a_junction_out_of_quarantine()
+    {
+        var outside = _t.File("precious\\keep.txt", 5);
+        File.SetAttributes(outside, FileAttributes.ReadOnly);
+        var dir = _t.Dir("data\\with-link");
+        _t.File("data\\with-link\\x.bin", 5);
+        var link = _t.P("data\\with-link\\link");
+        var mk = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{_t.P("precious")}\"") { CreateNoWindow = true, UseShellExecute = false })!;
+        mk.WaitForExit();
+        Assert.True(Directory.Exists(link));
+
+        var r = _engine.Quarantine([Move(dir, true)], null, dryRun: false);
+        Assert.Equal(5, r.DoneBytes); // the link's target isn't counted either
+        var del = _engine.Delete(r.Batch!);
+        Assert.True(del.Failed == 0, string.Join(" | ", del.Items.Select(i => i.Reason)));
+
+        Assert.True(File.Exists(outside));
+        Assert.True(File.GetAttributes(outside).HasFlag(FileAttributes.ReadOnly));
+        Assert.Empty(_engine.List());
+    }
+
+    [Fact]
     public void Drive_root_quarantine_folder_is_private_and_hidden()
     {
         var dir = _t.P(".ferahla");

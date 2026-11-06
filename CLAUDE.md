@@ -1,6 +1,6 @@
 # Ferahla: notes for Claude sessions
 
-Ferahla is an open-source Windows disk scanner and safe-cleanup tool: one NativeAOT exe (.NET 10) that serves a local web UI, a CLI and an MCP server. Done: M0 spikes (results in `docs/spikes.md`), M1 (scan, rules, findings, report), M2a (quarantine CLI). Next: M2b, the local server and live UI.
+Ferahla is an open-source Windows disk scanner and safe-cleanup tool: one NativeAOT exe (.NET 10) that serves a local web UI, a CLI and an MCP server. Done: M0 spikes (results in `docs/spikes.md`), M1 (scan, rules, findings, report), M2a (quarantine CLI), M2b (local server + UI). Next: M3 (Claude analysis over MCP), then M4 deep checks, a UI polish pass, M5 release.
 
 ## Privacy: nothing about the owner goes into this repo
 
@@ -31,12 +31,20 @@ This repo is public. The tool is developed against the owner's real machine and 
 
 - `src/Ferahla.Core/`: snapshot model, rules engine (`Findings/`), diff, store, HTML report, JSON context. Platform-neutral and testable.
 - `src/Ferahla.Windows/`: scanner (`FileSystemEnumerable`, one pass), registry/known folders, coded detectors (`Detectors/`).
-- `src/Ferahla/`: the `ferahla` exe (System.CommandLine). Commands: `scan`, `scans`, `findings`, `diff`, `inspect`, `report`, `quarantine`, `restore`.
+- `src/Ferahla/`: the `ferahla` exe (System.CommandLine). Commands: `scan`, `scans`, `findings`, `diff`, `inspect`, `report`, `quarantine`, `restore`, and `ui` (the default with no command).
 - Quarantine: `Core/Quarantine/` holds the plan/manifest model, `MoveGuard` (paths that never move, whatever the plan
   says) and `PlanValidator` (a plan item moves only if a fresh findings run of its scan still suggests that exact item).
   `Windows/Quarantine/` holds the engine (`MoveFileExW` rename without copy fallback, write-ahead manifest per batch and
   volume, private ACL for `X:\.ferahla`) and Restart Manager lock lookup, which runs only after a move failed. Keep it
   that way: never add a CLI or MCP command that deletes for good; that is a UI button only.
+- `src/Ferahla.Server/`: the local UI server (Kestrel slim builder, NativeAOT). `Security.cs` is the gate every request
+  passes (Host allowlist, Origin and Sec-Fetch-Site checks, per-launch token header on `/api`, POST = JSON only, strict
+  CSP); `ServerTests.cs` pins each rule, keep them green. Handlers are plain `RequestDelegate`s with the `ApiJson`
+  source-generated context (no minimal-API reflection). One job at a time (`Jobs`), progress over SSE (`EventHub`).
+  `FindingsService`, `ScanService` and `PlanRunner` in Ferahla.Windows are shared by the CLI and the server.
+- `web/`: the UI, embedded into the exe (no build step): `index.html`, `css/app.css` (design tokens, light/dark),
+  `js/` ES modules (`app.js` shell + router, `store.js`, `api.js`, `ui.js`, `i18n.js` with en+tr, `views/*`). CSP has
+  no `unsafe-inline`: never use inline `style`/`on*` attributes or innerHTML; set styles through the CSSOM.
 - `rules/*.json`: declarative rules (path / marker / dirName / detector), embedded into the exe; `rules/schema.json` for editors.
 - `tests/Ferahla.Core.Tests/`: xUnit v3 on real temp trees (`TempTree`). Test data is invented; never real scans.
 - Scans live in `%LOCALAPPDATA%\Ferahla\scans` (override with `FERAHLA_HOME`, as tests and CI do). UI language follows Windows; override with `FERAHLA_LANG=en|tr`.

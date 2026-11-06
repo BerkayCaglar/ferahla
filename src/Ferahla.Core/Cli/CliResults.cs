@@ -37,6 +37,9 @@ public sealed class ScanListItem
     public DateTimeOffset ScannedAt { get; set; }
     public long FreeBytes { get; set; }
     public long ScannedBytes { get; set; }
+    public long TotalBytes { get; set; }
+    public long Files { get; set; }
+    public double ElapsedSeconds { get; set; }
 }
 
 public sealed class InspectResult

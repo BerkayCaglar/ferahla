@@ -24,6 +24,7 @@ namespace Ferahla.Core.Json;
 [JsonSerializable(typeof(Cli.ScanSummary))]
 [JsonSerializable(typeof(Cli.ErrorResult))]
 [JsonSerializable(typeof(List<Cli.ScanListItem>))]
+[JsonSerializable(typeof(Cli.ScanListItem))]
 [JsonSerializable(typeof(Quarantine.CleanupPlan))]
 [JsonSerializable(typeof(Quarantine.QuarantineManifest))]
 [JsonSerializable(typeof(Quarantine.QuarantineResult))]

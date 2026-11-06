@@ -41,6 +41,8 @@ public enum EntryState
     [JsonStringEnumMemberName("moving")] Moving,
     [JsonStringEnumMemberName("quarantined")] Quarantined,
     [JsonStringEnumMemberName("restored")] Restored,
+    /// <summary>Deleted for good from the UI.</summary>
+    [JsonStringEnumMemberName("deleted")] Deleted,
 }
 
 public sealed class QuarantineManifest
@@ -73,6 +75,7 @@ public sealed class QuarantineEntry
     public EntryState State { get; set; }
     public DateTimeOffset? MovedAt { get; set; }
     public DateTimeOffset? RestoredAt { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }
 
 // ---- results ----
@@ -84,6 +87,7 @@ public enum OutcomeStatus
     [JsonStringEnumMemberName("wouldMove")] WouldMove,
     [JsonStringEnumMemberName("restored")] Restored,
     [JsonStringEnumMemberName("wouldRestore")] WouldRestore,
+    [JsonStringEnumMemberName("deleted")] Deleted,
     /// <summary>Not attempted: no longer suggested, already gone, protected, recently changed…</summary>
     [JsonStringEnumMemberName("skipped")] Skipped,
     /// <summary>Attempted and failed: in use, access denied.</summary>
@@ -140,4 +144,21 @@ public sealed class BatchInfo
     public int Items { get; set; }
     public long Bytes { get; set; }
     public int Restored { get; set; }
+    public int Deleted { get; set; }
+    /// <summary>Items still in quarantine.</summary>
+    public List<BatchEntry> Entries { get; set; } = [];
+}
+
+public sealed class BatchEntry
+{
+    /// <summary>Stable within a batch: drive letter + slot number, e.g. <c>C3</c>.</summary>
+    public string Key { get; set; } = "";
+    public string Volume { get; set; } = "";
+    public string OriginalPath { get; set; } = "";
+    public bool IsDir { get; set; }
+    public long Bytes { get; set; }
+    public long Files { get; set; }
+    public string? FindingId { get; set; }
+    public string? RuleId { get; set; }
+    public DateTimeOffset? MovedAt { get; set; }
 }

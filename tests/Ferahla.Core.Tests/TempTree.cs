@@ -3,9 +3,14 @@ namespace Ferahla.Core.Tests;
 /// <summary>A throwaway directory tree under %TEMP% for scanner tests.</summary>
 public sealed class TempTree : IDisposable
 {
-    public string Root { get; } = Path.Combine(Path.GetTempPath(), "ferahla-test-" + Guid.NewGuid().ToString("N")[..8]);
+    public string Root { get; }
 
-    public TempTree() => Directory.CreateDirectory(Root);
+    /// <param name="outsideTemp">Under the test output folder instead of %TEMP%: rules treat everything in Temp as Temp.</param>
+    public TempTree(bool outsideTemp = false)
+    {
+        Root = Path.Combine(outsideTemp ? AppContext.BaseDirectory : Path.GetTempPath(), "ferahla-test-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(Root);
+    }
 
     public string P(string rel) => Path.Combine(Root, rel);
 

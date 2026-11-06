@@ -43,6 +43,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           ./publish/ferahla.exe quarantine --list --json
           if ($LASTEXITCODE -ne 0) { exit 1 }
+          # UI server: page, token-protected API, quit
+          $p = Start-Process ./publish/ferahla.exe -ArgumentList 'ui', '--no-browser' -RedirectStandardOutput "$env:RUNNER_TEMP\ui.out" -PassThru
+          Start-Sleep 3
+          $url = (Get-Content "$env:RUNNER_TEMP\ui.out")[1]
+          $base = $url.Split('#')[0].TrimEnd('/'); $token = $url.Split('=')[1]
+          if ((Invoke-WebRequest "$base/" -UseBasicParsing).StatusCode -ne 200) { exit 1 }
+          $state = Invoke-RestMethod "$base/api/state" -Headers @{ 'X-Ferahla-Token' = $token }
+          if (-not $state.scans) { exit 1 }
+          Invoke-RestMethod "$base/api/quit" -Method Post -Headers @{ 'X-Ferahla-Token' = $token } -ContentType 'application/json' -Body '{}'
+          if (-not $p.WaitForExit(10000)) { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:

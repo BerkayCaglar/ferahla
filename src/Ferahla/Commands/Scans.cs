@@ -34,14 +34,5 @@ internal static class Scans
         return false;
     }
 
-    /// <summary>The readable scan of the same root right before <paramref name="snap"/>, if any.</summary>
-    public static Snapshot? Previous(SnapshotStore store, Snapshot snap)
-    {
-        foreach (var id in store.List(snap.Root).SkipWhile(x => x != snap.Id).Skip(1))
-        {
-            try { return store.Load(id); }
-            catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidDataException or IOException) { }
-        }
-        return null;
-    }
+    public static Snapshot? Previous(SnapshotStore store, Snapshot snap) => Windows.FindingsService.Previous(store, snap);
 }

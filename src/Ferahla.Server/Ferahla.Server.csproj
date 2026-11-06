@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Ferahla.Server</RootNamespace>
+    <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ferahla.Core\Ferahla.Core.csproj" />
+    <ProjectReference Include="..\Ferahla.Windows\Ferahla.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The UI ships inside the exe; served by StaticWeb (no file provider, no files on disk). -->
+    <EmbeddedResource Include="..\..\web\**\*" LinkBase="web" LogicalName="web/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ferahla.Core.Tests" />
+  </ItemGroup>
+
+</Project>
