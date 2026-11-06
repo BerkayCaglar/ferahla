@@ -95,3 +95,5 @@ if ($Commits) {
 
 if ($found) { Write-Host "check-private: $found finding(s). Fix before committing."; exit 1 }
 Write-Host ("check-private: clean ({0} files{1})" -f $files.Count, $(if ($Commits) { ', commit messages' } else { '' }))
+# Explicit: otherwise pwsh returns the last native command's exit code (e.g. `git config` with no value set).
+exit 0

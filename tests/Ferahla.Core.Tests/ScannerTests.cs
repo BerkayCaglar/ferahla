@@ -127,7 +127,7 @@ public class ScannerTests
     {
         using var t = new TempTree();
         var deep = string.Join('\\', Enumerable.Repeat("very-long-folder-name-ğüşıöçİ", 12));
-        t.File(Path.Combine(deep, "dosya.bin"), 2 * MB);
+        t.File(Path.Combine(deep, "file.bin"), 2 * MB);
         Assert.True(t.P(deep).Length > 260);
 
         var (snap, ix) = Scan(t);
