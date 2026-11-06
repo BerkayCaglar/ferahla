@@ -26,6 +26,9 @@ jobs:
         shell: pwsh
         run: ./tools/check-private.ps1 -All
 
+      - name: Check web code (syntax, no innerHTML / inline script)
+        run: node tools/check-web.mjs
+
       - name: Test
         run: dotnet test --solution Ferahla.slnx -c Release
 

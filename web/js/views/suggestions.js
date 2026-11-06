@@ -137,7 +137,8 @@ function row(f) {
     h('div.row-flex.actions-row',
       f.items.length && f.action !== 'info' ? h('button.btn.btn-sm', { onclick: e => verify(f, e.currentTarget) }, icon('checkCircle'), t('verify')) : null,
       (SYSTEM[f.ruleId] || []).map(([id, label]) => h('button.btn.btn-sm', { onclick: () => runSystem(id) }, icon('shield'), t(label))),
-      f.action === 'uninstall' || f.action === 'launcher' ? h('button.btn.btn-sm', { onclick: () => ctxRef.go('apps', { tab: f.category === 'game' ? 'games' : 'apps' }) }, icon('apps'), t('openApps')) : null),
+      f.action === 'uninstall' || f.action === 'launcher' ? h('button.btn.btn-sm', { onclick: () => ctxRef.go('apps', { tab: f.category === 'game' ? 'games' : 'apps' }) }, icon('apps'), t('openApps')) : null,
+      h('button.btn.btn-sm.btn-ghost', { onclick: () => editNote(f) }, icon('note'), f.note ? t('editNote') : t('addNote'))),
     h('div.verify-out'),
     top.length > 1 ? h('ul.paths', top.slice(0, 30).map(i => h('li', h('span', i.path), h('span', size(i.bytes))))) : null);
 
@@ -182,6 +183,24 @@ async function verify(f, btn) {
       h('ul', r.checks.map(c => h('li', c)))));
   } catch (e) { clear(out).appendChild(h('div.note.danger', icon('xCircle'), h('div', t('errorGeneric', e.message)))); }
   btn.disabled = false;
+}
+
+async function editNote(f) {
+  let verdict = f.noteVerdict && f.noteVerdict !== 'none' ? f.noteVerdict : 'check';
+  let area;
+  const text = await dialog((close, re) => {
+    area ??= h('textarea.text-input', { rows: 4, placeholder: t('notePh'), 'aria-label': t('notePh') });
+    if (!area.value && f.note) area.value = f.note;
+    const pick = v => h('button', { class: verdict === v ? 'on' : '', type: 'button', onclick: () => { verdict = v; re(); } }, t({ remove: 'vRemove', check: 'vCheck', keep: 'vKeep' }[v]));
+    return {
+      icon: 'note', title: f.note ? t('editNote') : t('addNote'), text: f.title,
+      body: h('div.stack.tight', area, h('div.seg', ['remove', 'check', 'keep'].map(pick))),
+      actions: [{ label: t('cancel'), kind: 'ghost', value: undefined }, { label: t('save'), kind: 'primary', run: c => c(area.value) }],
+    };
+  });
+  if (text === undefined) return;
+  try { await post('/api/note', { findingId: f.id, text, verdict }); }
+  catch (e) { toast(t('errorGeneric', e.message), 'error'); }
 }
 
 async function runSystem(id) {

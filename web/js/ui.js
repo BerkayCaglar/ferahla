@@ -132,6 +132,22 @@ export async function confirm(title, text, okLabel, tone) {
   }));
 }
 
+/** Asks for one line of text. Resolves with the text, or undefined if cancelled. */
+export function promptDialog({ icon: ic = 'folder', title, text, label, value = '', placeholder = '', okLabel }) {
+  let input;
+  const p = dialog(close => {
+    input = h('input.text-input', { type: 'text', value, placeholder, 'aria-label': label || title, spellcheck: 'false' });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && input.value.trim()) close(input.value.trim()); });
+    return {
+      icon: ic, title, text,
+      body: h('label.field', label ? h('span', label) : null, input),
+      actions: [{ label: t('cancel'), kind: 'ghost', value: undefined }, { label: okLabel || 'OK', kind: 'primary', run: c => input.value.trim() && c(input.value.trim()) }],
+    };
+  });
+  setTimeout(() => { input?.focus(); input?.select(); }, 30);
+  return p;
+}
+
 /** A small popup menu anchored under `anchor`; items: [{icon, title, sub, on, run, extra}]. */
 export function menu(anchor, items) {
   document.querySelectorAll('.menu').forEach(m => m.remove());

@@ -179,6 +179,8 @@ const en = {
   apStarted: 'Uninstaller started. Scan again afterwards to see the space.', apFailed: 'Could not start the uninstaller. Try Windows Apps settings.',
   apNote: 'Sizes come from the scan when the app’s folder was scanned; ~ marks the installer’s own estimate.',
   hiCompareWith: 'Compare with', hiSince: d => `since ${d}`,
+  scanFolderText: 'Any folder on a local drive: a projects folder, a download folder, a game library.', freeShort: s => `free ${s}`,
+  wins: 'Biggest wins', winsSub: 'safe and regenerable',
 };
 
 const tr = {
@@ -359,6 +361,8 @@ const tr = {
   apStarted: 'Kaldırıcı başlatıldı. Açılan yeri görmek için sonra yeniden tara.', apFailed: 'Kaldırıcı başlatılamadı. Windows Uygulamalar ayarlarını dene.',
   apNote: 'Uygulamanın klasörü tarandıysa boyut taramadan gelir; ~ işareti kurulumun kendi tahminidir.',
   hiCompareWith: 'Karşılaştır', hiSince: d => `${d} tarihinden beri`,
+  scanFolderText: 'Yerel bir sürücüdeki herhangi bir klasör: proje klasörü, indirilenler, oyun kütüphanesi.', freeShort: s => `${s} boş`,
+  wins: 'En büyük kazançlar', winsSub: 'risksiz ve yeniden üretilir',
 };
 
 const dicts = { en, tr };

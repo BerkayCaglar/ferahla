@@ -1,5 +1,5 @@
 // Shell: sidebar, top bar, router. Views live in ./views and render into #content.
-import { h, $, clear, toast, menu, size, ago, meter, confirm } from './ui.js';
+import { h, $, clear, toast, menu, size, ago, meter, confirm, promptDialog } from './ui.js';
 import { icon, brandMark } from './icons.js';
 import { t, setLang, getLang } from './i18n.js';
 import { hasToken, post, download, ApiError } from './api.js';
@@ -51,7 +51,7 @@ async function render() {
   if (!store.state) return;
   const seq = ++renderSeq;
   const r = route();
-  for (const b of nav.querySelectorAll('.nav-item')) b.classList.toggle('on', b.dataset.id === r.id);
+  for (const b of nav.querySelectorAll('.nav-item')) { b.classList.toggle('on', b.dataset.id === r.id); if (b.dataset.id === r.id) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
   if (cleanup) { try { cleanup(); } catch { /* view already gone */ } cleanup = null; }
   clear(content);
   const box = h('div.view');
@@ -99,7 +99,7 @@ function sidebar() {
   return h('aside.sidebar',
     h('div.brand', brandMark(), h('div', h('div.brand-name', 'Ferahla'), h('div.brand-tag', t('appTag')))),
     nav,
-    h('div.sidebar-foot', themeSeg, langSeg,
+    h('div.sidebar-foot', h('div.drive-mini', { id: 'driveMini' }), themeSeg, langSeg,
       h('div.version', h('span', 'v' + (store.state?.version || '')),
         h('button', { text: t('quit'), onclick: quit }))));
 }
@@ -159,9 +159,9 @@ function driveMenu(anchor) {
   const folders = [...new Set(s.scans.map(x => x.root))].filter(r => r.length > 3);
   for (const f of folders) items.push({ icon: 'folder', on: f === store.root, title: f, sub: t('scanned', ago(scansOf(f)[0].scannedAt)), run: () => selectRoot(f) });
   items.push('-', {
-    icon: 'folder', title: t('scanFolder'), run: () => {
-      const p = prompt(t('scanFolderPrompt'), store.root || '');
-      if (p && p.trim()) { selectRoot(p.trim().replace(/[\\/]+$/, '') || p.trim()); startScan(p.trim()); }
+    icon: 'folder', title: t('scanFolder'), run: async () => {
+      const p = await promptDialog({ title: t('scanFolder').replace('…', ''), text: t('scanFolderText'), label: t('scanFolderPrompt'), value: store.root && store.root.length > 3 ? store.root : '', placeholder: 'D:\\Projects', okLabel: t('scanNow') });
+      if (p) startScan(p.replace(/[\\/]+$/, '') || p);
     },
   });
   menu(anchor, items);
@@ -183,7 +183,19 @@ export async function startScan(root) {
   }
 }
 
+function driveMini() {
+  const el = $('#driveMini');
+  if (!el) return;
+  const root = store.root || '';
+  const d = store.state?.drives.find(x => x.root.toLowerCase() === root.slice(0, 3).toLowerCase());
+  if (!d) { clear(el); return; }
+  const used = d.totalBytes - d.freeBytes;
+  clear(el).append(h('div.row-flex', icon('drive'), h('b', root.slice(0, 2)), h('span.sp'), h('span.muted', t('freeShort', size(d.freeBytes)))),
+    meter(d.totalBytes ? used / d.totalBytes : 0, used / d.totalBytes > 0.9 ? 'review' : 'accent'));
+}
+
 function badges() {
+  driveMini();
   const q = $('#qBadge');
   if (q) { const n = store.state?.quarantineItems || 0; q.textContent = n; q.classList.toggle('hidden', n === 0); }
 }
@@ -234,4 +246,12 @@ async function boot(relang = false) {
 applyTheme(pref.get('theme', 'system'));
 setLang(pref.get('lang', navigator.language?.startsWith('tr') ? 'tr' : 'en'));
 window.addEventListener('pagehide', () => stopEvents?.());
+// "/" jumps to the page's search box (like most web apps); Escape leaves it.
+document.addEventListener('keydown', e => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+  if (e.key === '/' && !typing && !document.querySelector('dialog[open]')) {
+    const s = document.querySelector('.view input[type=search]');
+    if (s) { e.preventDefault(); s.focus(); }
+  } else if (e.key === 'Escape' && typing && document.activeElement.type === 'search') document.activeElement.blur();
+});
 boot();

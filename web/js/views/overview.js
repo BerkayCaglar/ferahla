@@ -50,7 +50,8 @@ async function draw() {
     h('div.grid.grid-hero',
       hero(findings, suggest, actionable.length),
       h('div.stack', tiles(findings), kinds(actionable))),
-    h('div.grid.grid-2', { class: 'mt' }, whereCard(tree), growthCard(diff)));
+    h('div.grid.grid-2', { class: 'mt' }, whereCard(tree), growthCard(diff)),
+    winsCard(actionable) || '');
   const n = notes(findings, scan);
   if (n) box.appendChild(n);
   box.querySelector('.mt').style.marginTop = '18px';
@@ -116,6 +117,20 @@ function kinds(list) {
       const d = h('i.dot'); d.style.background = colors[i % colors.length];
       return h('div.cat-item', d, h('span.c-name', catName(c)), h('span.c-val', size(b)));
     })));
+}
+
+function winsCard(list) {
+  const top = list.filter(f => f.action === 'quarantine' && f.risk !== 'review').sort((a, b) => b.bytes - a.bytes).slice(0, 5);
+  if (!top.length) return null;
+  const card = h('div.card.card-pad.wins',
+    h('div.card-head', icon('bolt'), h('h2', t('wins')), h('span.muted', t('winsSub'))),
+    h('div.win-list', top.map(f => h('button.win', { onclick: () => ctxRef.go('suggestions', { risk: f.risk }) },
+      catIcon(f.category),
+      h('span.w-main', h('b', f.title), h('span', f.items[0]?.path || '')),
+      h('span.chip.' + f.risk, riskName(f.risk)),
+      h('b.w-size', size(f.bytes))))));
+  card.style.marginTop = '18px';
+  return card;
 }
 
 function whereCard(tree) {
@@ -199,7 +214,7 @@ function scanning(job) {
         stat('bytes', size(job.bytes), t('statFound')),
         stat('elapsed', '0:00', t('statElapsed'))),
       h('div.scan-path', { dataset: { k: 'current' } }, job.current || ''),
-      h('div.indeterminate'),
+      expected(job) ? h('div.determinate', h('i', { dataset: { k: 'bar' } })) : h('div.indeterminate'),
       h('div.row-flex', { class: 'mt2' }, h('button.btn', { onclick: () => post('/api/cancel') }, icon('stop'), t('cancel')))));
   el.querySelector('.grow').style.flex = '1';
   el.querySelector('.grow').style.minWidth = '0';
@@ -217,7 +232,17 @@ function scanning(job) {
 
 const stat = (k, v, label) => h('div', h('b', { dataset: { k } }, v), h('span', label));
 
+/** Bytes the scan should find: the used space of the drive (only for a whole drive). */
+function expected(job) {
+  const root = (job.target || '').toLowerCase();
+  if (root.length !== 3) return 0;
+  const d = store.state?.drives.find(x => x.root.toLowerCase() === root);
+  return d ? d.totalBytes - d.freeBytes : 0;
+}
+
 function updateScan(j) {
+  const total = expected(j), bar = box.querySelector('[data-k="bar"]');
+  if (bar && total) bar.style.width = Math.min(97, j.bytes / total * 100) + '%';
   const set = (k, v) => { const e = box.querySelector(`[data-k="${k}"]`); if (e) e.textContent = v; };
   set('files', count(j.files)); set('dirs', count(j.dirs)); set('bytes', size(j.bytes)); set('current', j.current || '');
 }
