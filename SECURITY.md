@@ -20,7 +20,8 @@ drive and can be put back. Before anything moves:
   themselves, Ferahla's own data, network and device paths, and non-canonical paths (`MoveGuard`);
 - moves use `MoveFileExW` without copy fallback and are written to a manifest first, so a crash leaves nothing lost;
 - quarantine on other drives lives in a hidden `X:\.ferahla` folder whose ACL allows only you, SYSTEM and
-  Administrators.
+  Administrators; it is used only if it is a real folder owned by you (or SYSTEM/Administrators), never a link another
+  account prepared, and restore and delete refuse any quarantine slot that has been turned into a link.
 
 Permanent delete exists only in the UI, behind an explicit confirmation, for items already in quarantine, and never
 follows a junction or symbolic link out of the quarantine.
@@ -41,7 +42,8 @@ that one step. `DISM /ResetBase` is never run. Ferahla itself never runs elevate
 
 **Claude analysis** (optional) runs your own Claude Code with no built-in tools, only Ferahla's read-only MCP tools plus
 a note tool, no settings, hooks or CLAUDE.md files, and every permission prompt refused. Ferahla checks the tool list
-when the run starts and stops it if anything else is enabled. It never reads Claude's credentials. Scan data given to
+when the run starts and stops it if anything else is enabled; "Continue in terminal" resumes the session with the same
+restrictions, because its history contains scan text. It never reads Claude's credentials. Scan data given to
 Claude is treated as data in the prompt, not as instructions.
 
 ## Out of scope

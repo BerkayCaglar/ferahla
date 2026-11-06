@@ -359,7 +359,8 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         // Only an existing, full local path; explorer gets it as one /select argument.
         if (path.Length < 4 || path[1] != ':' || path[2] != '\\' || path.Contains('"') || !(File.Exists(path) || Directory.Exists(path)))
             return Error(ctx, 404, Lang.T("Not found", "Bulunamadı"));
-        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{PathUtil.Normalize(path)}\"") { UseShellExecute = false });
+        // Full path: a bare "explorer.exe" could be found next to ferahla.exe first (e.g. in Downloads).
+        Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"/select,\"{PathUtil.Normalize(path)}\"") { UseShellExecute = false })?.Dispose();
         return Json(ctx, new OkDto(), ApiJson.Web.OkDto);
     }
 

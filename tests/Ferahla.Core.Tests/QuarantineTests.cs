@@ -326,6 +326,39 @@ public sealed class QuarantineEngineTests : IDisposable
         Assert.Empty(_engine.List());
     }
 
+    private static void Junction(string link, string target)
+    {
+        var mk = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"") { CreateNoWindow = true, UseShellExecute = false })!;
+        mk.WaitForExit();
+        Assert.True(Directory.Exists(link));
+    }
+
+    [Fact]
+    public void A_prepared_link_as_the_drive_quarantine_folder_is_refused()
+    {
+        var elsewhere = _t.Dir("attacker-owned");
+        var dot = _t.P(".ferahla-link");
+        Junction(dot, elsewhere);
+        Assert.Throws<InvalidOperationException>(() => QuarantineEngine.MakePrivate(dot));
+    }
+
+    [Fact]
+    public void Delete_refuses_a_slot_that_was_turned_into_a_link()
+    {
+        var victimDir = _t.Dir("victim");
+        var victim = _t.File("victim\\a.bin", 7);
+        var f = _t.File("data\\a.bin", 5);
+        var r = _engine.Quarantine([Move(f, false)], null, dryRun: false);
+        var slot = Path.Combine(_home, "quarantine", r.Batch!, "items", "1");
+        Directory.Move(slot, slot + "-moved");
+        Junction(slot, victimDir); // items\1\a.bin now points at the victim's file
+
+        var del = _engine.Delete(r.Batch!);
+        Assert.Equal(OutcomeStatus.Failed, Assert.Single(del.Items).Status);
+        Assert.True(File.Exists(victim));
+        Assert.Equal(OutcomeStatus.Failed, Assert.Single(_engine.Restore(r.Batch!, dryRun: false).Items).Status);
+    }
+
     [Fact]
     public void Drive_root_quarantine_folder_is_private_and_hidden()
     {

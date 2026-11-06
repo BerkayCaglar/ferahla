@@ -71,21 +71,48 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
     }
 
     /// <summary>A drive-root quarantine would inherit "Authenticated Users: Modify": make it private and hidden.</summary>
+    /// <remarks>
+    /// On a shared PC another account could create <c>X:\.ferahla</c> first (with an open ACL, or as a junction) and
+    /// then read or redirect what this user quarantines. So the folder must be a real directory owned by this user,
+    /// SYSTEM or Administrators, and its ACL is rewritten every time; otherwise quarantine is off for that drive.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The folder is a link or belongs to someone else.</exception>
     internal static void MakePrivate(string dotFerahla)
     {
         var di = Directory.CreateDirectory(dotFerahla);
-        var sec = di.GetAccessControl();
-        if (!sec.AreAccessRulesProtected)
-        {
-            sec = new DirectorySecurity();
-            sec.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-            var user = WindowsIdentity.GetCurrent().User!;
-            foreach (var sid in new[] { user, new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null) })
-                sec.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl,
-                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-            di.SetAccessControl(sec);
-        }
+        if (di.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            throw new InvalidOperationException(Lang.T($"{dotFerahla} is a link, not a folder", $"{dotFerahla} bir klasör değil, bağlantı"));
+        var user = WindowsIdentity.GetCurrent().User!;
+        var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+        var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+        var owner = di.GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier;
+        if (owner is null || !(owner.Equals(user) || owner.Equals(system) || owner.Equals(admins)))
+            throw new InvalidOperationException(Lang.T($"{dotFerahla} belongs to another account", $"{dotFerahla} başka bir hesaba ait"));
+        var sec = new DirectorySecurity();
+        sec.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        foreach (var sid in new[] { user, system, admins })
+            sec.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+        di.SetAccessControl(sec);
         di.Attributes |= FileAttributes.Hidden;
+    }
+
+    /// <summary>True if any folder from the quarantine root down to <paramref name="path"/> is a junction or symlink.</summary>
+    private bool LinkOnTheWay(string path)
+    {
+        var p = PathUtil.Normalize(Path.GetFullPath(path));
+        // Walk up until (and including) the folder that holds the quarantine root.
+        for (var cur = p; cur is not null && cur.Length > 3; cur = PathUtil.Parent(cur))
+        {
+            try
+            {
+                if (File.GetAttributes(cur).HasFlag(FileAttributes.ReparsePoint)) return true;
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { }
+            var name = PathUtil.Name(cur);
+            if (name.Equals(".ferahla", StringComparison.OrdinalIgnoreCase) || PathUtil.Normalize(cur).Equals(PathUtil.Normalize(Home), StringComparison.OrdinalIgnoreCase)) break;
+        }
+        return false;
     }
 
     // ---- quarantine ----
@@ -171,6 +198,7 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
                 if (!PathUtil.IsUnder(root, Home)) MakePrivate(Path.GetDirectoryName(root)!);
                 b = new Batch(Path.Combine(root, batchId), new QuarantineManifest { Batch = batchId, CreatedAt = _now(), ScanId = scanId, Volume = volume });
                 Directory.CreateDirectory(b.Dir);
+                if (LinkOnTheWay(b.Dir)) throw new InvalidOperationException(Lang.T("The quarantine folder is a link", "Karantina klasörü bir bağlantı"));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
@@ -188,6 +216,7 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
             IsDir = isDir, Bytes = bytes, Files = files, FindingId = m.FindingId, RuleId = m.RuleId, State = EntryState.Moving,
         };
         Directory.CreateDirectory(slot);
+        if (LinkOnTheWay(slot)) return Skip(o, Lang.T("The quarantine folder is a link", "Karantina klasörü bir bağlantı"));
         b.Manifest.Items.Add(entry);
         b.Save(); // write-ahead: if Ferahla stops mid-move, restore still knows where the item may be
 
@@ -253,7 +282,7 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
                 progress?.Invoke(e.OriginalPath);
                 var o = new ItemOutcome { Path = e.OriginalPath, FindingId = e.FindingId, Bytes = e.Bytes };
                 var stored = Path.GetFullPath(Path.Combine(b.Dir, e.StoredPath));
-                if (!PathUtil.IsUnder(stored, b.Dir) || guard.Check(e.OriginalPath) is not null)
+                if (!PathUtil.IsUnder(stored, b.Dir) || guard.Check(e.OriginalPath) is not null || LinkOnTheWay(Path.GetDirectoryName(stored)!))
                 {
                     result.Add(Fail(o, Lang.T("The manifest entry is not valid", "Manifest kaydı geçersiz")));
                     continue;
@@ -301,7 +330,7 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
                 var stored = Path.GetFullPath(Path.Combine(b.Dir, e.StoredPath));
                 var slot = Path.GetDirectoryName(stored)!;
                 // Only ever inside this batch's own slot folder.
-                if (!PathUtil.IsUnder(stored, Path.Combine(b.Dir, "items")) || PathUtil.Normalize(stored) == PathUtil.Normalize(Path.Combine(b.Dir, "items")))
+                if (LinkOnTheWay(slot) || !PathUtil.IsUnder(stored, Path.Combine(b.Dir, "items")) || PathUtil.Normalize(stored) == PathUtil.Normalize(Path.Combine(b.Dir, "items")))
                 {
                     result.Add(Fail(o, Lang.T("The manifest entry is not valid", "Manifest kaydı geçersiz")));
                     continue;

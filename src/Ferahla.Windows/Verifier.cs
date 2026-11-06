@@ -140,6 +140,8 @@ public static class Verifier
                 var rel = e.FullName.Replace('/', '\\');
                 var p = Path.Combine(folder, rel);
                 if (!File.Exists(p) && top is not null) p = Path.Combine(folder, rel[(top.Length + 1)..]);
+                // A crafted entry name (..\, C:\) must not make us read outside the folder.
+                if (!PathUtil.IsUnder(Path.GetFullPath(p), folder)) { missing++; continue; }
                 if (!File.Exists(p)) { missing++; continue; }
                 var fi = new FileInfo(p);
                 if (fi.Length != e.Length || Crc32.Of(p, ct) != e.Crc32) different++;

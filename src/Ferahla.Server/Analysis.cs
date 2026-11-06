@@ -278,32 +278,40 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
         return jobs.Cancel();
     }
 
-    /// <summary>Opens the session in a terminal (Windows Terminal if present) to continue by hand.</summary>
+    /// <summary>
+    /// Opens the session in a terminal (Windows Terminal if present) to continue by hand, with the same isolation as
+    /// the analysis: no built-in tools, no settings or hooks. The session history contains scan text (file names), which
+    /// is untrusted; it must not meet Bash or file tools.
+    /// </summary>
     public bool OpenTerminal()
     {
         string? sid; lock (_lock) sid = _last.SessionId;
         var claude = FindClaude();
-        if (sid is null || claude is null) return false;
+        if (sid is null || claude is null || !Guid.TryParse(sid, out _)) return false;
         var cfg = Path.Combine(WorkDir, "ferahla-mcp.json");
-        // --mcp-config is not restored by --resume, so it is given again (docs/spikes.md 2–4).
-        var claudeArgs = new[] { "--resume", sid, "--mcp-config", cfg, "--strict-mcp-config", "--allowedTools", "mcp__ferahla__*" };
+        if (claude.Contains('"') || cfg.Contains('"') || claude.Contains('%') || cfg.Contains('%')) return false;
+        // A small batch file, so the empty "" arguments survive every launcher. --mcp-config is not restored by
+        // --resume, so it is given again (docs/spikes.md 2-4).
+        var script = Path.Combine(WorkDir, "resume.cmd");
+        File.WriteAllText(script,
+            "@echo off\r\n" +
+            $"\"{claude}\" --resume {sid} --mcp-config \"{cfg}\" --strict-mcp-config --tools \"\" --setting-sources \"\" --allowedTools mcp__ferahla__*\r\n",
+            new UTF8Encoding(false));
+        var cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
         var wt = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps", "wt.exe");
         ProcessStartInfo psi;
         if (File.Exists(wt))
         {
             psi = new ProcessStartInfo(wt) { UseShellExecute = false };
-            foreach (var a in new[] { "-w", "new", "new-tab", "-d", WorkDir, claude }.Concat(claudeArgs)) psi.ArgumentList.Add(a);
+            foreach (var a in new[] { "-w", "new", "new-tab", "-d", WorkDir, cmd, "/k", script }) psi.ArgumentList.Add(a);
         }
         else
         {
-            psi = new ProcessStartInfo("powershell.exe") { UseShellExecute = true, WorkingDirectory = WorkDir };
-            var quoted = string.Join(' ', claudeArgs.Select(a => "'" + a.Replace("'", "''") + "'"));
-            psi.Arguments = $"-NoExit -Command \"& '{claude.Replace("'", "''")}' {quoted}\"";
+            psi = new ProcessStartInfo(cmd) { UseShellExecute = true, WorkingDirectory = WorkDir, Arguments = "/k \"" + script + "\"" };
         }
-        Process.Start(psi);
+        Process.Start(psi)?.Dispose();
         return true;
     }
-
     /// <summary>ProcessStartInfo for claude.exe, or claude.cmd through cmd.exe (npm installs).</summary>
     private static ProcessStartInfo Start(string exe, IEnumerable<string> args, string workDir)
     {
