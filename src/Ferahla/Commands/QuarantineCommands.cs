@@ -53,7 +53,7 @@ internal static class QuarantineCommand
         var store = SnapshotStore.Default();
         if (!Scans.TryLoad(store, plan.ScanId, json, out var snap, out var code)) return code;
         if (!json) Output.Status(Lang.T("Checking the plan against the current findings…", "Plan güncel bulgularla karşılaştırılıyor…"));
-        var result = PlanRunner.Run(plan, snap, store, dryRun, json ? null : p => Output.Status((dryRun ? "… " : "→ ") + p));
+        var result = PlanRunner.Run(plan, snap, store, dryRun, json ? null : p => Output.Status((dryRun ? "… " : "→ ") + p.Path));
         if (!json) Output.EndStatus();
         return Report(result, json, restore: false);
     }
@@ -124,7 +124,7 @@ internal static class RestoreCommand
     {
         try
         {
-            var r = QuarantineCommand.Engine(SnapshotStore.Default()).Restore(batch, dryRun, json ? null : p => Output.Status("← " + p));
+            var r = QuarantineCommand.Engine(SnapshotStore.Default()).Restore(batch, dryRun, json ? null : p => Output.Status("← " + p.Path));
             if (!json) Output.EndStatus();
             return QuarantineCommand.Report(r, json, restore: true);
         }

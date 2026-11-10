@@ -25,6 +25,7 @@ public sealed class AnalysisDto
     public ClaudeInfo Claude { get; set; } = new();
     public bool Running { get; set; }
     public string? ScanId { get; set; }
+    public string? Scope { get; set; }
     public string? SessionId { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
@@ -39,7 +40,10 @@ public sealed class AnalysisRequest
 {
     public string? Scan { get; set; }
     public string? Model { get; set; }
-    public int MaxTurns { get; set; } = 40;
+    /// <summary>0: sized to the number of notes to write (<see cref="AnalysisScope.Turns"/>).</summary>
+    public int MaxTurns { get; set; }
+    /// <summary><see cref="AnalysisScope"/>: all, unnoted or quarantine.</summary>
+    public string? Scope { get; set; }
 }
 
 /// <summary>
@@ -129,7 +133,7 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
             var dto = new AnalysisDto
             {
                 Claude = info, Running = jobs.Running && jobs.Current?.Kind == JobKind.Analysis,
-                ScanId = _last.ScanId, SessionId = _last.SessionId, StartedAt = _last.StartedAt, FinishedAt = _last.FinishedAt,
+                ScanId = _last.ScanId, Scope = _last.Scope, SessionId = _last.SessionId, StartedAt = _last.StartedAt, FinishedAt = _last.FinishedAt,
                 Outcome = _last.Outcome, Notes = _last.Notes, Target = _last.Target, Usage = _last.Usage ?? LoadUsage(),
                 Events = [.. _events],
             };
@@ -145,17 +149,17 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
 
     // ---- run ----
 
-    public Func<CancellationToken, Task> Prepare(string scanId, AnalysisRequest req, int target, ClaudeInfo info)
+    public Func<CancellationToken, Task> Prepare(string scanId, AnalysisRequest req, int target)
     {
         lock (_lock)
         {
             _events.Clear();
-            _last = new AnalysisDto { ScanId = scanId, StartedAt = DateTimeOffset.UtcNow, Target = target, Usage = _last.Usage ?? LoadUsage() };
+            _last = new AnalysisDto { ScanId = scanId, Scope = AnalysisScope.Normalize(req.Scope), StartedAt = DateTimeOffset.UtcNow, Target = target, Usage = _last.Usage ?? LoadUsage() };
         }
-        return ct => Run(scanId, req, info, ct);
+        return ct => Run(scanId, req, target, ct);
     }
 
-    private async Task Run(string scanId, AnalysisRequest req, ClaudeInfo info, CancellationToken ct)
+    private async Task Run(string scanId, AnalysisRequest req, int target, CancellationToken ct)
     {
         var claude = FindClaude() ?? throw new InvalidOperationException(Lang.T("Claude Code is not installed", "Claude Code kurulu değil"));
         Directory.CreateDirectory(WorkDir);
@@ -171,7 +175,7 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
             "--append-system-prompt-file", prompt,
             "--mcp-config", mcpConfig, "--strict-mcp-config",
             "--tools", "", "--allowedTools", "mcp__ferahla__*", "--permission-prompts", "none",
-            "--setting-sources", "", "--session-id", sessionId, "--max-turns", Math.Clamp(req.MaxTurns, 5, 120).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--setting-sources", "", "--session-id", sessionId, "--max-turns", Math.Clamp(req.MaxTurns > 0 ? req.MaxTurns : AnalysisScope.Turns(target), 5, 150).ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
         if (req.Model is { Length: > 0 } model && model.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '[' or ']')) { args.Add("--model"); args.Add(model); }
 
@@ -187,7 +191,7 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
         try
         {
             var stdin = p.StandardInput.BaseStream;
-            await stdin.WriteAsync(Encoding.UTF8.GetBytes(UserMessage(scanId)), ct);
+            await stdin.WriteAsync(Encoding.UTF8.GetBytes(UserMessage(scanId, AnalysisScope.Normalize(req.Scope), target)), ct);
             stdin.Close();
             var stderr = p.StandardError.ReadToEndAsync(ct);
             using var reg = ct.Register(job.Terminate);
@@ -260,9 +264,23 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
-    private static string UserMessage(string scanId) => Lang.IsTurkish
-        ? $"Ferahla taramasını analiz et ({scanId}). Notları ve özeti Türkçe yaz."
-        : $"Analyze the Ferahla scan ({scanId}). Write the notes and the summary in English.";
+    internal static string UserMessage(string scanId, string scope, int target) => (scope, Lang.IsTurkish) switch
+    {
+        (AnalysisScope.Quarantine, true) =>
+            $"Ferahla'nın karantinasını gözden geçir ({target} öğe; tarama {scanId}). Kullanıcı bunları kalıcı olarak silmeyi düşünüyor. " +
+            "list_quarantine ile hepsini al ve her öğenin finding id'sine bir not yaz. Notları ve özeti Türkçe yaz.",
+        (AnalysisScope.Quarantine, false) =>
+            $"Review Ferahla's quarantine ({target} items; scan {scanId}). The user is thinking of deleting them for good. " +
+            "Get them all with list_quarantine and write a note on each entry's finding id. Write the notes and the summary in English.",
+        (AnalysisScope.Unnoted, true) =>
+            $"Ferahla taramasını analiz et ({scanId}). Sadece henüz notu olmayan önerilere bak (list_findings toAssess=true withoutNote=true): {target} öneri, her birine bir not. Notları ve özeti Türkçe yaz.",
+        (AnalysisScope.Unnoted, false) =>
+            $"Analyze the Ferahla scan ({scanId}). Only the suggestions without a note yet (list_findings toAssess=true withoutNote=true): {target} suggestions, a note on each. Write the notes and the summary in English.",
+        (_, true) =>
+            $"Ferahla taramasını analiz et ({scanId}). Değerlendirilecek {target} önerinin her birine bir not yaz (list_findings toAssess=true). Notları ve özeti Türkçe yaz.",
+        _ =>
+            $"Analyze the Ferahla scan ({scanId}). Write a note on each of the {target} suggestions to assess (list_findings toAssess=true). Write the notes and the summary in English.",
+    };
 
     internal static string Prompt(string lang)
     {

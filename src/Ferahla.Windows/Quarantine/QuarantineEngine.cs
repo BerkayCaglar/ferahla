@@ -117,20 +117,25 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
 
     // ---- quarantine ----
 
-    public QuarantineResult Quarantine(IReadOnlyList<ApprovedMove> moves, string? scanId, bool dryRun, Action<string>? progress = null)
+    public QuarantineResult Quarantine(IReadOnlyList<ApprovedMove> moves, string? scanId, bool dryRun, Action<MoveProgress>? progress = null)
     {
         var result = new QuarantineResult { DryRun = dryRun };
         var batchId = NewBatchId();
         var batches = new Dictionary<string, Batch>(StringComparer.OrdinalIgnoreCase);
+        long totalBytes = moves.Sum(m => m.PlannedBytes), doneBytes = 0;
         try
         {
-            foreach (var m in moves)
+            for (var i = 0; i < moves.Count; i++)
+            {
+                var m = moves[i];
                 foreach (var (path, isDir) in Units(m, result))
                 {
-                    progress?.Invoke(path);
+                    progress?.Invoke(new MoveProgress(path, i, moves.Count, doneBytes, totalBytes));
                     var o = MoveOne(m, path, isDir, dryRun, scanId, batchId, batches);
                     result.Add(o);
                 }
+                doneBytes += m.PlannedBytes;
+            }
         }
         finally
         {
@@ -261,6 +266,32 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
 
     private static string KeyOf(QuarantineManifest m, QuarantineEntry e) => $"{m.Volume[..1]}{e.N}";
 
+    /// <summary>Counts the entries a restore or delete will handle, for progress.</summary>
+    private sealed class Counter
+    {
+        private readonly IReadOnlySet<string>? _keys;
+        private readonly int _total;
+        private readonly long _totalBytes;
+        private int _done;
+        private long _doneBytes;
+
+        public Counter(List<Batch> batches, IReadOnlySet<string>? keys)
+        {
+            _keys = keys;
+            foreach (var e in batches.SelectMany(Pending)) { _total++; _totalBytes += e.Bytes; }
+        }
+
+        public List<QuarantineEntry> Pending(Batch b) =>
+            b.Manifest.Items.Where(e => !IsGone(e) && (_keys is null || _keys.Contains(KeyOf(b.Manifest, e)))).ToList();
+
+        public void Report(Action<MoveProgress>? progress, QuarantineEntry e)
+        {
+            progress?.Invoke(new MoveProgress(e.OriginalPath, _done, _total, _doneBytes, _totalBytes));
+            _done++;
+            _doneBytes += e.Bytes;
+        }
+    }
+
     private List<Batch> Find(string batchId)
     {
         if (!IsBatchId(batchId)) throw new ArgumentException(Lang.T($"Not a batch id: {batchId}", $"Geçerli bir karantina kimliği değil: {batchId}"));
@@ -271,15 +302,16 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
 
     /// <param name="keys">Only these entries (<see cref="BatchEntry.Key"/>); null for the whole batch.</param>
     /// <exception cref="FileNotFoundException">No such batch.</exception>
-    public QuarantineResult Restore(string batchId, bool dryRun, Action<string>? progress = null, IReadOnlySet<string>? keys = null)
+    public QuarantineResult Restore(string batchId, bool dryRun, Action<MoveProgress>? progress = null, IReadOnlySet<string>? keys = null)
     {
         var found = Find(batchId);
         var result = new QuarantineResult { DryRun = dryRun, Batch = batchId };
+        var counter = new Counter(found, keys);
         foreach (var b in found)
         {
-            foreach (var e in b.Manifest.Items.Where(e => !IsGone(e) && (keys is null || keys.Contains(KeyOf(b.Manifest, e)))).ToList())
+            foreach (var e in counter.Pending(b))
             {
-                progress?.Invoke(e.OriginalPath);
+                counter.Report(progress, e);
                 var o = new ItemOutcome { Path = e.OriginalPath, FindingId = e.FindingId, Bytes = e.Bytes };
                 var stored = Path.GetFullPath(Path.Combine(b.Dir, e.StoredPath));
                 if (!PathUtil.IsUnder(stored, b.Dir) || guard.Check(e.OriginalPath) is not null || LinkOnTheWay(Path.GetDirectoryName(stored)!))
@@ -318,14 +350,16 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
 
     // ---- delete for good (UI only; deliberately not reachable from the CLI or MCP) ----
 
-    public QuarantineResult Delete(string batchId, IReadOnlySet<string>? keys = null, Action<string>? progress = null)
+    public QuarantineResult Delete(string batchId, IReadOnlySet<string>? keys = null, Action<MoveProgress>? progress = null)
     {
         var result = new QuarantineResult { Batch = batchId };
-        foreach (var b in Find(batchId))
+        var found = Find(batchId);
+        var counter = new Counter(found, keys);
+        foreach (var b in found)
         {
-            foreach (var e in b.Manifest.Items.Where(e => !IsGone(e) && (keys is null || keys.Contains(KeyOf(b.Manifest, e)))).ToList())
+            foreach (var e in counter.Pending(b))
             {
-                progress?.Invoke(e.OriginalPath);
+                counter.Report(progress, e);
                 var o = new ItemOutcome { Path = e.OriginalPath, FindingId = e.FindingId, Bytes = e.Bytes };
                 var stored = Path.GetFullPath(Path.Combine(b.Dir, e.StoredPath));
                 var slot = Path.GetDirectoryName(stored)!;
@@ -399,10 +433,29 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
         if (!File.Exists(file)) return null;
         try
         {
-            var m = JsonSerializer.Deserialize(File.ReadAllBytes(file), FerahlaJson.Default.QuarantineManifest);
+            var m = JsonSerializer.Deserialize(ReadShared(file), FerahlaJson.Default.QuarantineManifest);
             return m is { Kind: QuarantineManifest.KindName } && m.Schema <= QuarantineManifest.CurrentSchema ? new Batch(dir, m) : null;
         }
         catch (JsonException) { return null; }
+    }
+
+    /// <summary>
+    /// Reads a manifest without blocking its writer: a reader that doesn't share Delete makes the writer's
+    /// replace fail with "access denied" (the UI lists the quarantine while a job saves after every item).
+    /// </summary>
+    private static byte[] ReadShared(string file)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                using var s = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var ms = new MemoryStream();
+                s.CopyTo(ms);
+                return ms.ToArray();
+            }
+            catch (IOException) when (attempt < 10 && File.Exists(file)) { Thread.Sleep(30); } // mid-replace
+        }
     }
 
     private string NewBatchId() =>
@@ -500,7 +553,13 @@ public sealed partial class QuarantineEngine(string home, MoveGuard guard, Func<
             var file = Path.Combine(Dir, QuarantineManifest.FileName);
             var tmp = file + ".tmp";
             File.WriteAllBytes(tmp, JsonSerializer.SerializeToUtf8Bytes(Manifest, FerahlaJson.Indented.QuarantineManifest));
-            File.Move(tmp, file, overwrite: true);
+            // Another process (antivirus, indexer, an older Ferahla) may hold the manifest for a moment; the replace
+            // then fails with a sharing violation or "access denied". Wait it out rather than fail the whole job.
+            for (var attempt = 0; ; attempt++)
+            {
+                try { File.Move(tmp, file, overwrite: true); return; }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < 40) { Thread.Sleep(50); }
+            }
         }
     }
 }

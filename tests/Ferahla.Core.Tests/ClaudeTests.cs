@@ -81,6 +81,21 @@ public class StreamParserTests
         Assert.Empty(p.Feed("{\"type\":\"something_new\",\"x\":1}"));
         Assert.Empty(p.Feed("[1,2]"));
     }
+
+    [Fact]
+    public void Batch_notes_yield_one_note_event_each()
+    {
+        const string line = """
+            {"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_fake01","name":"mcp__ferahla__add_notes",
+            "input":{"notes":[{"findingId":"f-0000000001","text":"Build output.","verdict":"remove"},
+            {"findingId":"f-0000000002","text":"Look first."},"junk"]}}]}}
+            """;
+        var ev = new StreamParser().Feed(line.ReplaceLineEndings(""));
+        Assert.Equal("add_notes", Assert.Single(ev, e => e.Kind == AnalysisEventKind.Tool).Tool);
+        var notes = ev.Where(e => e.Kind == AnalysisEventKind.Note).ToList();
+        Assert.Equal(["f-0000000001", "f-0000000002"], notes.Select(n => n.FindingId));
+        Assert.Equal(["remove", "check"], notes.Select(n => n.Verdict));
+    }
 }
 
 public sealed class NoteStoreTests : IDisposable
@@ -158,5 +173,39 @@ public sealed class McpToolTests : IDisposable
         Assert.Equal("claude", note.Source);
         Assert.Equal(NoteVerdict.Remove, note.Verdict);
         Assert.Equal("Dependencies; npm install brings them back.", Tools.Findings(null, "build", 0, 10, 0).Findings[0].ExistingNote);
+        Assert.Empty(Tools.Findings(null, "build", 0, 10, 0, withoutNote: true).Findings);
+
+        var batch = Tools.Notes([
+            new McpNoteInput { FindingId = f.Id, Text = "Rebuilt by npm install.", Verdict = "remove" },
+            new McpNoteInput { FindingId = "f-0000000000", Text = "x" },
+            new McpNoteInput { FindingId = f.Id, Text = " " },
+        ]);
+        Assert.Equal(1, batch.Saved);
+        Assert.Equal(2, batch.Failed.Count);
+        Assert.Equal("Rebuilt by npm install.", new NoteStore(home).Load().Notes[f.Id].Text);
+        Assert.Equal(0, Tools.Quarantine(25, 0).Total);
+    }
+
+    [Fact]
+    public void Quarantined_findings_are_listed_and_can_get_notes()
+    {
+        var home = Setup();
+        var f = Assert.Single(Tools.Findings(null, "build", 0, 10, 0).Findings);
+        var store = new Storage.SnapshotStore(home);
+        var snap = store.Load(store.Latest()!);
+        var plan = new Core.Quarantine.CleanupPlan
+        {
+            Schema = Core.Quarantine.CleanupPlan.CurrentSchema, Kind = Core.Quarantine.CleanupPlan.KindName, ScanId = snap.Id,
+            Findings = [new() { Id = f.Id, RuleId = f.Rule, Action = "quarantine", Items = f.Items.Select(i => new Core.Quarantine.PlanItem { Path = i.Path, Bytes = (long)(i.Mb * (1 << 20)) }).ToList() }],
+        };
+        var moved = Windows.Quarantine.PlanRunner.Run(plan, snap, store, dryRun: false);
+        Assert.Equal(1, moved.Done);
+
+        var q = Tools.Quarantine(25, 0);
+        var e = Assert.Single(q.Entries);
+        Assert.Equal(f.Id, e.FindingId);
+        Assert.EndsWith("node_modules", e.OriginalPath);
+        Assert.True(Tools.Notes([new McpNoteInput { FindingId = f.Id, Text = "Safe to delete; npm install restores it.", Verdict = "remove" }]).Saved == 1);
+        Assert.Equal("Safe to delete; npm install restores it.", Tools.Quarantine(25, 0).Entries[0].ExistingNote);
     }
 }

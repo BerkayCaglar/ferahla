@@ -1,9 +1,10 @@
-import { h, clear, size, signed, riskName, catName, date, copyText, toast, dialog, skeleton, setWidth } from '../ui.js';
+import { h, clear, size, signed, riskName, catName, date, copyText, toast, dialog, skeleton, setWidth, menu } from '../ui.js';
 import { icon, catIcon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, cached, currentScan, runJob, jobRunning, dropCache, refreshState } from '../store.js';
 import { ApiError, post } from '../api.js';
 import { verdictChip } from './analysis.js';
+import { progressView, withProgress } from '../progress.js';
 
 const GROUPS = ['safe', 'regenerable', 'review', 'personal'];
 let box, ctxRef, data, bar, filter = { q: '', risk: 'all' };
@@ -150,8 +151,20 @@ function row(f) {
       f.note ? h('div.ai-note', h('div.ai-head', icon(f.noteSource === 'claude' ? 'robot' : 'note'), h('b', f.noteSource === 'claude' ? t('claudeSays') : t('yourNote')), verdictChip(f.noteVerdict)), h('p', f.note)) : null,
       f.evidence?.length ? h('div.i-ev', f.evidence.slice(0, 4).map(e => h('span.ev', icon('check'), e))) : null,
       h('div.i-more', details)),
-    h('div.i-size', size(f.bytes), grew ? h('small', grew) : f.action === 'info' ? h('small', t('act_info')) : null));
+    h('div.i-size', size(f.bytes), grew ? h('small', grew) : f.action === 'info' ? h('small', t('act_info')) : null,
+      top.length ? revealButton(top) : null));
   return el;
+}
+
+/** Opens Explorer on the item; with several top-level items, a menu picks which one. */
+function revealButton(top) {
+  const open = p => post('/api/reveal', { path: p }).catch(e => toast(e.message, 'error'));
+  const btn = h('button.icon-btn.reveal', {
+    title: t('showInExplorer'), 'aria-label': t('showInExplorer'),
+    onclick: () => top.length === 1 ? open(top[0].path)
+      : menu(btn, top.slice(0, 20).map(i => ({ icon: 'folder', title: i.path.slice(i.path.lastIndexOf('\\') + 1) || i.path, sub: i.path, right: size(i.bytes), run: () => open(i.path) }))),
+  }, icon('external'));
+  return btn;
 }
 
 function refreshGroupChecks() {
@@ -255,11 +268,12 @@ async function quarantineFlow(list) {
   const plan = planFor(list);
   let preview = null, error = null;
   const run = runJob('/api/quarantine', { plan, dryRun: true }).then(j => { preview = j; }, e => { error = e; });
+  const checking = progressView();
   let rerender;
   const result = dialog((close, re) => {
     rerender = re;
     if (error) return { icon: 'xCircle', tone: 'danger', title: t('pvTitle'), text: t('errorGeneric', error.message), actions: [{ label: t('close'), kind: 'primary' }] };
-    if (!preview) return { icon: 'box', title: t('pvTitle'), text: t('pvChecking'), body: h('div.indeterminate') };
+    if (!preview) return { icon: 'box', title: t('pvTitle'), text: t('pvChecking'), body: checking.el };
     const r = preview.result || { items: [], done: 0, doneBytes: 0, skipped: 0, failed: 0 };
     if (preview.state !== 'done') return { icon: 'xCircle', tone: 'danger', title: t('pvTitle'), text: t('errorGeneric', preview.error || preview.state), actions: [{ label: t('close') }] };
     const skipped = r.items.filter(o => o.status !== 'wouldMove');
@@ -277,11 +291,12 @@ async function quarantineFlow(list) {
     };
   });
   await run;
+  checking.stop();
   rerender?.();
   if (!await result) return;
 
   let job;
-  try { job = await runJob('/api/quarantine', { plan, dryRun: false }); }
+  try { job = await withProgress({ icon: 'box', title: t('progMoving'), text: t('progKeepOpen') }, () => runJob('/api/quarantine', { plan, dryRun: false })); }
   catch (e) { toast(e instanceof ApiError && e.status === 409 ? t('jobBusy') : t('errorGeneric', e.message), 'error'); return; }
   const r = job.result || { items: [], done: 0, doneBytes: 0 };
   for (const f of list) store.selection.delete(f.id);
@@ -304,7 +319,7 @@ function showResult(r) {
     left: r.batch ? h('button.btn.btn-ghost', {
       onclick: async () => {
         close();
-        const j = await runJob('/api/restore', { batch: r.batch });
+        const j = await withProgress({ icon: 'undo', title: t('progRestoring'), text: t('progKeepOpen') }, () => runJob('/api/restore', { batch: r.batch }));
         dropCache(); refreshState().catch(() => {});
         toast(j.result?.done ? t('undone') : t('errorGeneric', j.error || ''), j.result?.done ? 'ok' : 'error');
       },

@@ -5,10 +5,11 @@ import { t } from '../i18n.js';
 import { store, cached, currentScan, jobRunning, pref } from '../store.js';
 import { get, post, ApiError } from '../api.js';
 
-let box, ctxRef, data, findingsById = new Map(), live, textEl, progressEl, stepsEl, toolCards = new Map();
+let box, ctxRef, data, findingsById = new Map(), live, textEl, progressEl, stepsEl, toolCards = new Map(), scope = 'all';
 
 export async function render(container, ctx) {
   box = container; ctxRef = ctx;
+  scope = ctx.params.get('scope') || scope;
   box.appendChild(skeleton(5));
   await load();
 }
@@ -96,13 +97,26 @@ function runCard() {
     [['', t('anModelDefault')], ['haiku', 'Haiku · ' + t('anCheapest')], ['sonnet', 'Sonnet'], ['opus', 'Opus']].map(([v, l]) => h('option', { value: v, text: l, selected: pref.get('model', '') === v })));
   model.addEventListener('change', () => pref.set('model', model.value));
 
+  // What to cover: every suggestion to assess, only those without a note, or the quarantine before deleting.
+  const toAssess = [...findingsById.values()].filter(f => f.action !== 'info' && (f.bytes >= 10 * 1048576 || f.risk === 'review'));
+  const unnoted = toAssess.filter(f => !f.note).length;
+  const inQuarantine = store.state?.quarantineItems || 0;
+  const scopes = [['all', t('anScopeAll', toAssess.length)]];
+  if (unnoted && unnoted < toAssess.length) scopes.push(['unnoted', t('anScopeUnnoted', unnoted)]);
+  if (inQuarantine) scopes.push(['quarantine', t('anScopeQuarantine', inQuarantine)]);
+  if (!scopes.some(([v]) => v === scope)) scope = 'all';
+  const scopeSel = h('select.select', { 'aria-label': t('anScope') },
+    scopes.map(([v, l]) => h('option', { value: v, text: l, selected: v === scope })));
+  scopeSel.addEventListener('change', () => { scope = scopeSel.value; });
+
   const head = h('div.card-head', icon('sparkle'), h('h2', running ? t('anRunning') : data.events.length ? t('anLastRun') : t('anStartTitle')),
     running ? h('span.job-pill', h('span.spinner'), t('anWorking')) : null);
   const actions = h('div.row-flex',
-    !running ? [model, h('button.btn.btn-primary', { disabled: !scan || jobRunning(), onclick: () => start(model.value) }, icon('play'), data.events.length ? t('anAgain') : t('anStart'))]
+    !running ? [scopes.length > 1 ? scopeSel : null, model, h('button.btn.btn-primary', { disabled: !scan || jobRunning(), onclick: () => start(model.value) }, icon('play'), data.events.length ? t('anAgain') : t('anStart'))]
       : h('button.btn', { onclick: stop }, icon('stop'), t('anStop')),
     data.sessionId && !running ? h('button.btn.btn-ghost', { onclick: terminal }, icon('terminal'), t('anTerminal')) : null,
-    data.notes ? h('button.btn.btn-ghost', { onclick: () => ctxRef.go('suggestions') }, icon('sparkle'), t('anSeeNotes', data.notes)) : null);
+    data.notes ? h('button.btn.btn-ghost', { onclick: () => ctxRef.go(data.scope === 'quarantine' ? 'quarantine' : 'suggestions') }, icon('sparkle'),
+      t(data.scope === 'quarantine' ? 'anSeeNotesQ' : 'anSeeNotes', data.notes)) : null);
 
   progressEl = h('div.an-progress');
   stepsEl = h('div.steps');
@@ -131,7 +145,7 @@ function addEvent(ev, liveUpdate) {
       stepsEl.appendChild(step('play', t('anStarted', ev.model || ''), null, 'muted'));
       break;
     case 'tool': {
-      if (ev.tool === 'add_note') break;
+      if (ev.tool === 'add_note' || ev.tool === 'add_notes') break;
       const card = h('details.tool', h('summary', icon(toolIcon(ev.tool)), h('span', toolLabel(ev.tool)), h('code.small', argsText(ev.input)), h('span.sp'), h('span.spinner')),
         h('pre.tool-io', pretty(ev.input)));
       toolCards.set(ev.toolId, card);
@@ -186,7 +200,7 @@ export function verdictChip(v) {
   return h('span.chip.' + cls, t(key));
 }
 
-const toolIcon = n => ({ get_summary: 'overview', list_findings: 'sparkle', inspect_path: 'folder', verify_finding: 'checkCircle', get_diff: 'trend' }[n] || 'wrench');
+const toolIcon = n => ({ get_summary: 'overview', list_findings: 'sparkle', list_quarantine: 'box', inspect_path: 'folder', verify_finding: 'checkCircle', get_diff: 'trend' }[n] || 'wrench');
 const toolLabel = n => t('tool_' + n) === 'tool_' + n ? n : t('tool_' + n);
 
 function argsText(input) {
@@ -204,7 +218,7 @@ function pretty(s) {
 async function start(model) {
   const scan = currentScan();
   try {
-    await post('/api/analysis/start', { scan: scan.id, model: model || null, maxTurns: 40 });
+    await post('/api/analysis/start', { scan: scan.id, model: model || null, scope });
     data = await get('/api/analysis');
     data.running = true;
     draw();

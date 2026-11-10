@@ -24,7 +24,7 @@ public static class PlanRunner
     /// Findings are computed again from the plan's scan; only what Ferahla suggests now can move.
     /// </summary>
     /// <exception cref="InvalidDataException">Not a valid plan.</exception>
-    public static QuarantineResult Run(CleanupPlan plan, Snapshot snap, SnapshotStore store, bool dryRun, Action<string>? progress = null)
+    public static QuarantineResult Run(CleanupPlan plan, Snapshot snap, SnapshotStore store, bool dryRun, Action<MoveProgress>? progress = null)
     {
         PlanValidator.CheckHeader(plan);
         if (plan.ScanId != snap.Id) throw new InvalidDataException("plan and scan don't match");

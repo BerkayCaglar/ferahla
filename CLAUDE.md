@@ -43,7 +43,7 @@ This repo is public. The tool is developed against the owner's real machine and 
   CSP); `ServerTests.cs` pins each rule, keep them green. Handlers are plain `RequestDelegate`s with the `ApiJson`
   source-generated context (no minimal-API reflection). One job at a time (`Jobs`), progress over SSE (`EventHub`).
   `FindingsService`, `ScanService` and `PlanRunner` in Ferahla.Windows are shared by the CLI and the server.
-- Claude analysis: `src/Ferahla.Mcp/` is `ferahla mcp` (official C# MCP SDK, stdio; read-only tools + `add_note`, never
+- Claude analysis: `src/Ferahla.Mcp/` is `ferahla mcp` (official C# MCP SDK, stdio; read-only tools + `add_note`/`add_notes`, never
   a tool that moves or deletes). `Server/Analysis.cs` runs `claude -p` isolated (`--tools "" --strict-mcp-config
   --setting-sources "" --permission-prompts none`, neutral `claude-work` folder, job object, `ANTHROPIC_API_KEY`
   removed) and stops if the init event lists any non-Ferahla tool. `Core/Claude/StreamParser.cs` turns stream-json into

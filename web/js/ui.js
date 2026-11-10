@@ -103,12 +103,13 @@ export function toast(text, kind = 'info', action) {
 export function dialog(build) {
   return new Promise(resolve => {
     const dlg = h('dialog');
-    let done = false;
+    let done = false, locked = false;
     const close = v => { if (done) return; done = true; dlg.close(); dlg.remove(); resolve(v); };
     const render = () => {
       const spec = build(close, render);
-      clear(dlg);
-      dlg.append(
+      locked = !!spec.locked; // Esc does nothing while work is running
+      // append() skips null parts; the native Element.append(null) would insert the text "null".
+      append(clear(dlg), [
         h('div.dlg-head',
           spec.icon ? h('div.ico-wrap' + (spec.tone === 'danger' ? '.danger' : ''), icon(spec.icon)) : null,
           h('div', h('h2', spec.title), spec.text ? h('p', spec.text) : null)),
@@ -116,10 +117,10 @@ export function dialog(build) {
         spec.actions?.length ? h('div.dlg-foot', spec.left || null, spec.left ? h('span.sp') : null,
           spec.actions.map(a => h('button.btn' + (a.kind ? '.btn-' + a.kind : ''), {
             text: a.label, disabled: a.disabled, onclick: () => a.run ? a.run(close) : close(a.value),
-          }))) : null);
+          }))) : null]);
     };
     render();
-    dlg.addEventListener('cancel', e => { e.preventDefault(); close(undefined); });
+    dlg.addEventListener('cancel', e => { e.preventDefault(); if (!locked) close(undefined); });
     document.body.appendChild(dlg);
     dlg.showModal();
   });

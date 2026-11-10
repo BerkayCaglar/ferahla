@@ -2,12 +2,15 @@ using System.ComponentModel;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Ferahla.Core;
+using Ferahla.Core.Claude;
 using Ferahla.Core.Findings;
 using Ferahla.Core.Model;
 using Ferahla.Core.Notes;
+using Ferahla.Core.Quarantine;
 using Ferahla.Core.Rules;
 using Ferahla.Core.Storage;
 using Ferahla.Windows;
+using Ferahla.Windows.Quarantine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -82,7 +85,10 @@ internal sealed class FerahlaTools
         [Description("Only this category, e.g. cache, build, installer, archive, duplicate, old-version")] string? category = null,
         [Description("Skip findings smaller than this many MB")] double minMb = 0,
         [Description("Page size, at most 50")] int limit = 25,
-        [Description("How many to skip")] int offset = 0) => Tools.Findings(risk, category, minMb, limit, offset);
+        [Description("How many to skip")] int offset = 0,
+        [Description("Only the suggestions to assess: not info-only, and at least 10 MB or risk review")] bool toAssess = false,
+        [Description("Only suggestions that have no note yet")] bool withoutNote = false) =>
+        Tools.Findings(risk, category, minMb, limit, offset, toAssess, withoutNote);
 
     [McpServerTool(Name = "inspect_path", ReadOnly = true, Idempotent = true)]
     [Description("Size, file count, last change, biggest subfolders and notable files of a folder in the scan, and the findings inside it.")]
@@ -102,6 +108,16 @@ internal sealed class FerahlaTools
         [Description("Finding id, f- and 10 hex digits")] string findingId,
         [Description("The note: what it is, what to do, and the deciding fact")] string text,
         [Description("remove (safe to quarantine) | check (look first) | keep")] string verdict = "check") => Tools.Note(findingId, text, verdict);
+
+    [McpServerTool(Name = "add_notes", Destructive = false)]
+    [Description("Saves notes on several findings at once (at most 25 per call). Same rules as add_note. Use this to cover many suggestions with few calls.")]
+    public static McpNotesResult AddNotes([Description("The notes, one per finding")] List<McpNoteInput> notes) => Tools.Notes(notes);
+
+    [McpServerTool(Name = "list_quarantine", ReadOnly = true, Idempotent = true)]
+    [Description("What is in Ferahla's quarantine now (moved, not deleted yet): original path, size, the finding and rule it came from, any existing note. Use offset to page.")]
+    public static McpQuarantinePage ListQuarantine(
+        [Description("Page size, at most 50")] int limit = 25,
+        [Description("How many to skip")] int offset = 0) => Tools.Quarantine(limit, offset);
 }
 
 internal static class Tools
@@ -136,11 +152,13 @@ internal static class Tools
         return s;
     }
 
-    public static McpFindingPage Findings(string? risk, string? category, double minMb, int limit, int offset)
+    public static McpFindingPage Findings(string? risk, string? category, double minMb, int limit, int offset, bool toAssess = false, bool withoutNote = false)
     {
         var (_, _, f, _) = Session.Get();
         var notes = Session.Notes.Load().Notes;
         IEnumerable<Finding> q = f.Findings.OrderByDescending(x => x.Bytes);
+        if (toAssess) q = q.Where(AnalysisScope.Eligible);
+        if (withoutNote) q = q.Where(x => !notes.ContainsKey(x.Id));
         if (!string.IsNullOrWhiteSpace(risk)) q = q.Where(x => RiskName(x.Risk) == risk.Trim().ToLowerInvariant());
         if (!string.IsNullOrWhiteSpace(category)) q = q.Where(x => x.Category.Equals(category.Trim(), StringComparison.OrdinalIgnoreCase));
         if (minMb > 0) q = q.Where(x => x.Bytes >= minMb * MB);
@@ -212,14 +230,71 @@ internal static class Tools
         };
     }
 
-    public static McpNoteResult Note(string findingId, string text, string verdict)
+    public static McpNoteResult Note(string findingId, string text, string verdict) => Note(findingId, text, verdict, null);
+
+    private static McpNoteResult Note(string findingId, string text, string verdict, HashSet<string>? known)
     {
         var (snap, _, f, _) = Session.Get();
         var id = (findingId ?? "").Trim();
-        if (f.Findings.All(x => x.Id != id)) return new McpNoteResult { FindingId = id, Saved = false, Error = "Unknown finding id; use an id from list_findings." };
+        // A finding of this scan, or one whose items sit in quarantine (moved after an earlier scan).
+        known ??= KnownIds();
+        if (!known.Contains(id)) return new McpNoteResult { FindingId = id, Saved = false, Error = "Unknown finding id; use an id from list_findings or list_quarantine." };
+        if (string.IsNullOrWhiteSpace(text)) return new McpNoteResult { FindingId = id, Saved = false, Error = "Empty note." };
         var v = (verdict ?? "").Trim().ToLowerInvariant() switch { "remove" => NoteVerdict.Remove, "keep" => NoteVerdict.Keep, "check" => NoteVerdict.Check, _ => NoteVerdict.None };
         var n = Session.Notes.Set(id, text, v, "claude", snap.Id, DateTimeOffset.UtcNow);
         return new McpNoteResult { FindingId = id, Saved = true, Chars = n.Text.Length };
+    }
+
+    private static HashSet<string> KnownIds()
+    {
+        var (_, _, f, _) = Session.Get();
+        var ids = new HashSet<string>(f.Findings.Select(x => x.Id), StringComparer.Ordinal);
+        foreach (var e in QuarantineEntries()) if (e.FindingId is { } id) ids.Add(id);
+        return ids;
+    }
+
+    public const int MaxNotesPerCall = 25;
+
+    public static McpNotesResult Notes(List<McpNoteInput>? notes)
+    {
+        var r = new McpNotesResult();
+        if (notes is null || notes.Count == 0) { r.Error = "No notes given."; return r; }
+        var known = KnownIds();
+        foreach (var n in notes.Take(MaxNotesPerCall))
+        {
+            var one = Note(n.FindingId, n.Text, n.Verdict ?? "check", known);
+            if (one.Saved) r.Saved++;
+            else r.Failed.Add(one);
+        }
+        if (notes.Count > MaxNotesPerCall) r.Error = $"Only the first {MaxNotesPerCall} were handled; send the rest in another call.";
+        return r;
+    }
+
+    private static List<BatchEntry> QuarantineEntries()
+    {
+        try { return PlanRunner.Engine(new SnapshotStore(Session.Home)).List().SelectMany(b => b.Entries).ToList(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { return []; }
+    }
+
+    public static McpQuarantinePage Quarantine(int limit, int offset)
+    {
+        var notes = Session.Notes.Load().Notes;
+        var (_, _, f, _) = Session.Get();
+        var byId = f.Findings.ToDictionary(x => x.Id, StringComparer.Ordinal);
+        var all = QuarantineEntries().OrderByDescending(e => e.Bytes).ToList();
+        limit = Math.Clamp(limit, 1, 50);
+        offset = Math.Max(0, offset);
+        return new McpQuarantinePage
+        {
+            Total = all.Count, Offset = offset, TotalMb = Mb(all.Sum(e => e.Bytes)),
+            Entries = all.Skip(offset).Take(limit).Select(e => new McpQuarantineEntry
+            {
+                FindingId = e.FindingId, Rule = e.RuleId, OriginalPath = e.OriginalPath, IsDir = e.IsDir, Mb = Mb(e.Bytes), Files = e.Files,
+                MovedAt = e.MovedAt?.ToString("yyyy-MM-dd"),
+                Title = e.FindingId is { } id && byId.TryGetValue(id, out var x) ? x.Title : null,
+                ExistingNote = e.FindingId is { } nid && notes.TryGetValue(nid, out var n) ? n.Text : null,
+            }).ToList(),
+        };
     }
 
     private static string RiskName(Risk r) => r.ToString().ToLowerInvariant();

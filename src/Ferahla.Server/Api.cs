@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Ferahla.Core;
+using Ferahla.Core.Claude;
 using Ferahla.Core.Cli;
 using Ferahla.Core.Model;
 using Ferahla.Core.Notes;
@@ -39,6 +40,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         app.MapGet("/api/tree", ctx => Guarded(ctx, () => Json(ctx, Tree(ctx.Request.Query["scan"], ctx.Request.Query["path"]), ApiJson.Web.TreeDto)));
         app.MapGet("/api/files", ctx => Guarded(ctx, () => Json(ctx, Files(ctx.Request.Query["scan"], ctx.Request.Query["kind"]), ApiJson.Web.FilesDto)));
         app.MapGet("/api/quarantine", ctx => Json(ctx, PlanRunner.Engine(state.Store).List(), ApiJson.Web.ListBatchInfo));
+        app.MapGet("/api/notes", ctx => Json(ctx, new NoteStore(state.Store.Home).Load(), ApiJson.Web.NoteFile));
         app.MapGet("/api/report", Report);
 
         app.MapPost("/api/lang", ctx => Body(ctx, ApiJson.Web.LangRequest, r =>
@@ -194,11 +196,16 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
 
         return Started(ctx, jobs.TryStart(JobKind.Quarantine, null, r.DryRun, _ =>
         {
-            var result = PlanRunner.Run(r.Plan, snap, state.Store, r.DryRun, p => jobs.Update(s => s.Current = p));
-            jobs.Update(s => { s.Result = result; s.Current = null; }, force: true);
+            var result = PlanRunner.Run(r.Plan, snap, state.Store, r.DryRun, ReportMove);
+            jobs.Update(s => { s.Result = result; s.Current = null; s.Done = s.Total; s.DoneBytes = s.TotalBytes; }, force: true);
             return Task.CompletedTask;
         }, () => { if (!r.DryRun) { state.InvalidateFindings(); hub.Changed("quarantine"); } }, out var status), status);
     }
+
+    private void ReportMove(MoveProgress p) => jobs.Update(s =>
+    {
+        s.Current = p.Path; s.Done = p.Done; s.Total = p.Total; s.DoneBytes = p.DoneBytes; s.TotalBytes = p.TotalBytes;
+    });
 
     private Task StartBatchJob(HttpContext ctx, BatchRequest r, JobKind kind)
     {
@@ -207,9 +214,8 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         return Started(ctx, jobs.TryStart(kind, r.Batch, false, _ =>
         {
             var engine = PlanRunner.Engine(state.Store);
-            void Progress(string p) => jobs.Update(s => s.Current = p);
-            var result = kind == JobKind.Delete ? engine.Delete(r.Batch, keys, Progress) : engine.Restore(r.Batch, false, Progress, keys);
-            jobs.Update(s => { s.Result = result; s.Current = null; }, force: true);
+            var result = kind == JobKind.Delete ? engine.Delete(r.Batch, keys, ReportMove) : engine.Restore(r.Batch, false, ReportMove, keys);
+            jobs.Update(s => { s.Result = result; s.Current = null; s.Done = s.Total; s.DoneBytes = s.TotalBytes; }, force: true);
             return Task.CompletedTask;
         }, () => { state.InvalidateFindings(); hub.Changed("quarantine"); }, out var status), status);
     }
@@ -222,10 +228,23 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         Snapshot snap;
         try { snap = state.Scan(r.Scan).Snap; }
         catch (FileNotFoundException ex) { await Error(ctx, 404, ex.Message); return; }
-        var findings = state.Findings(snap.Id);
-        // Roughly what the prompt asks Claude to cover: the suggestions that matter, at most 30.
-        var target = Math.Min(30, findings.Findings.Count(f => f.Action != ActionKind.Info && (f.Bytes >= (10L << 20) || f.Risk == Risk.Review)));
-        var work = analysis.Prepare(snap.Id, r, Math.Max(1, target), info);
+        // How many notes the run should write: the UI's progress bar and the turn budget follow from it.
+        var scope = AnalysisScope.Normalize(r.Scope);
+        int target;
+        if (scope == AnalysisScope.Quarantine)
+            target = PlanRunner.Engine(state.Store).List().Sum(b => b.Entries.Count(e => e.FindingId is not null));
+        else
+        {
+            var eligible = state.Findings(snap.Id).Findings.Where(AnalysisScope.Eligible);
+            if (scope == AnalysisScope.Unnoted)
+            {
+                var notes = new NoteStore(state.Store.Home).Load().Notes;
+                eligible = eligible.Where(f => !notes.ContainsKey(f.Id));
+            }
+            target = eligible.Count();
+        }
+        if (target == 0 && scope != AnalysisScope.All) { await Error(ctx, 400, Lang.T("Nothing to analyze", "Analiz edilecek bir şey yok")); return; }
+        var work = analysis.Prepare(snap.Id, r, Math.Max(1, target));
         await Started(ctx, jobs.TryStart(JobKind.Analysis, snap.Id, false, work, () => { state.InvalidateFindings(); hub.Changed("notes"); }, out var status), status);
     }
 
@@ -359,8 +378,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         // Only an existing, full local path; explorer gets it as one /select argument.
         if (path.Length < 4 || path[1] != ':' || path[2] != '\\' || path.Contains('"') || !(File.Exists(path) || Directory.Exists(path)))
             return Error(ctx, 404, Lang.T("Not found", "Bulunamadı"));
-        // Full path: a bare "explorer.exe" could be found next to ferahla.exe first (e.g. in Downloads).
-        Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"/select,\"{PathUtil.Normalize(path)}\"") { UseShellExecute = false })?.Dispose();
+        Explorer.Reveal(path);
         return Json(ctx, new OkDto(), ApiJson.Web.OkDto);
     }
 

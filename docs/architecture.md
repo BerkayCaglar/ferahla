@@ -15,7 +15,7 @@ src/Ferahla.Windows   scanner (FileSystemEnumerable), known folders, registry ap
                       quarantine engine (MoveFileExW, Restart Manager, private ACL), Verifier,
                       SystemActions, AppsService, JobObject
 src/Ferahla.Server    Kestrel (slim builder), Security gate, embedded web/, API, jobs + SSE, Claude analysis runner
-src/Ferahla.Mcp       MCP server (official C# SDK): read-only tools + add_note
+src/Ferahla.Mcp       MCP server (official C# SDK): read-only tools + add_note/add_notes
 src/Ferahla           the exe: System.CommandLine commands
 web/                  the UI: plain ES modules + one stylesheet, embedded into the exe
 rules/                declarative rules (JSON), embedded; see rules.md

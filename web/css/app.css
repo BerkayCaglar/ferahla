@@ -472,6 +472,7 @@ button.bar-row:hover { background: var(--surface-2); }
 .item .i-size { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .item .i-size small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); }
 .item.on .i-size { color: var(--accent); }
+.item .i-size .reveal { margin-top: 4px; margin-right: -6px; }
 .item .i-more { margin-top: 6px; }
 .item details { font-size: 13px; color: var(--ink-2); }
 .item summary { cursor: pointer; color: var(--accent); font-size: 12.5px; font-weight: 600; width: max-content; list-style: none; display: inline-flex; align-items: center; gap: 4px; }
@@ -556,6 +557,10 @@ button.bar-row:hover { background: var(--surface-2); }
 /* ---------- quarantine ---------- */
 
 .batch { margin-top: 16px; overflow: hidden; }
+.ask-claude { margin-top: 16px; }
+.ask-claude .row-flex > div { flex: 1 1 260px; }
+.ask-claude .row-flex > .ico { width: 22px; height: 22px; color: var(--accent); }
+.ask-claude p { font-size: 13px; margin-top: 2px; }
 .batch-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
 .batch-head h3 { font-size: 14.5px; }
 .batch-head .muted { font-size: 12.5px; }
@@ -656,6 +661,12 @@ dialog::backdrop { background: rgba(8, 14, 18, .45); backdrop-filter: blur(3px);
 .dlg-head h2 { font-size: 18px; line-height: 1.3; }
 .dlg-head p { color: var(--ink-2); font-size: 13.5px; margin-top: 4px; }
 .dlg-body { padding: 10px 22px; overflow: auto; }
+.progress { padding: 4px 0 8px; min-width: min(440px, 80vw); }
+.progress .prog-bar { margin-top: 14px; height: 10px; }
+.progress .prog-bar > i { transition-duration: .25s; }
+.progress .prog-nums { margin-top: 10px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.progress .prog-path { margin-top: 4px; min-height: 2.6em; font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dlg-foot { padding: 14px 22px 18px; display: flex; gap: 10px; justify-content: flex-end; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line-soft); }
 .dlg-foot .sp { flex: 1; }
 .outcomes { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }

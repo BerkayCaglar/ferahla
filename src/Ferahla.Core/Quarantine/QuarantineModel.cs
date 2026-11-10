@@ -3,6 +3,12 @@ using Ferahla.Core.Cli;
 
 namespace Ferahla.Core.Quarantine;
 
+/// <summary>
+/// Reported before each item is handled. <paramref name="Done"/> items (<paramref name="DoneBytes"/>, as planned)
+/// of <paramref name="Total"/> are behind it.
+/// </summary>
+public readonly record struct MoveProgress(string Path, int Done, int Total, long DoneBytes, long TotalBytes);
+
 // ---- plan file (written by the HTML report, later by the UI) ----
 
 /// <summary>What the user selected. Untrusted input: every item is checked again before anything moves.</summary>

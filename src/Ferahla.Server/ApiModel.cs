@@ -62,6 +62,11 @@ public sealed class JobStatus
     public long Dirs { get; set; }
     public long Bytes { get; set; }
     public string? Current { get; set; }
+    /// <summary>Quarantine, restore, delete: items handled so far, of Total (planned bytes alike).</summary>
+    public int Done { get; set; }
+    public int Total { get; set; }
+    public long DoneBytes { get; set; }
+    public long TotalBytes { get; set; }
     public string? Error { get; set; }
     public ScanSummary? Scan { get; set; }
     public QuarantineResult? Result { get; set; }
@@ -170,6 +175,7 @@ public sealed class NoteRequest { public string FindingId { get; set; } = ""; pu
 [JsonSerializable(typeof(Ferahla.Core.Findings.FindingsResult))]
 [JsonSerializable(typeof(Ferahla.Core.Diff.DiffResult))]
 [JsonSerializable(typeof(List<BatchInfo>))]
+[JsonSerializable(typeof(Ferahla.Core.Notes.NoteFile))]
 [JsonSerializable(typeof(List<ScanListItem>))]
 internal sealed partial class ApiJson : JsonSerializerContext
 {

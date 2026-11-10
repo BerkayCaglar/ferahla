@@ -29,13 +29,25 @@ async function draw() {
   box.querySelector('.mt').style.marginTop = '18px';
 }
 
+/** Drawn in real pixels (viewBox = the element's width), so text and points are never stretched. */
 function chart(scans) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const W = 720, H = 220, pad = { l: 56, r: 16, t: 14, b: 28 };
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'chart');
-  svg.setAttribute('preserveAspectRatio', 'none');
+  let lastW = 0;
+  const ro = new ResizeObserver(() => {
+    if (!svg.isConnected) { ro.disconnect(); return; }
+    const w = Math.round(svg.getBoundingClientRect().width);
+    if (w > 0 && w !== lastW) { lastW = w; drawChart(svg, scans, w); }
+  });
+  ro.observe(svg);
+  return svg;
+}
+
+function drawChart(svg, scans, W) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const H = 220, pad = { l: 56, r: 16, t: 14, b: 28 };
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const add = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text) e.textContent = text; svg.appendChild(e); return e; };
   const xs = scans.map(s => new Date(s.scannedAt).getTime());
   const ys = scans.map(s => s.freeBytes);
@@ -58,7 +70,6 @@ function chart(scans) {
   const first = scans[0], last = scans[scans.length - 1];
   add('text', { x: pad.l, y: H - 8, class: 'axis' }, shortDate(first.scannedAt));
   add('text', { x: W - pad.r, y: H - 8, 'text-anchor': 'end', class: 'axis' }, shortDate(last.scannedAt));
-  return svg;
 }
 
 function list(scans) {

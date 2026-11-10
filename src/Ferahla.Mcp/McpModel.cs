@@ -114,6 +114,44 @@ public sealed class McpNoteResult
     public string? Error { get; set; }
 }
 
+public sealed class McpNoteInput
+{
+    [System.ComponentModel.Description("Finding id, f- and 10 hex digits")]
+    public string FindingId { get; set; } = "";
+    [System.ComponentModel.Description("The note: what it is, what to do, and the deciding fact")]
+    public string Text { get; set; } = "";
+    [System.ComponentModel.Description("remove (safe to quarantine) | check (look first) | keep")]
+    public string? Verdict { get; set; }
+}
+
+public sealed class McpNotesResult
+{
+    public int Saved { get; set; }
+    public List<McpNoteResult> Failed { get; set; } = [];
+    public string? Error { get; set; }
+}
+
+public sealed class McpQuarantinePage
+{
+    public int Total { get; set; }
+    public int Offset { get; set; }
+    public double TotalMb { get; set; }
+    public List<McpQuarantineEntry> Entries { get; set; } = [];
+}
+
+public sealed class McpQuarantineEntry
+{
+    public string? FindingId { get; set; }
+    public string? Title { get; set; }
+    public string? Rule { get; set; }
+    public string OriginalPath { get; set; } = "";
+    public bool IsDir { get; set; }
+    public double Mb { get; set; }
+    public long Files { get; set; }
+    public string? MovedAt { get; set; }
+    public string? ExistingNote { get; set; }
+}
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(McpSummary))]
 [JsonSerializable(typeof(McpFindingPage))]
@@ -121,6 +159,10 @@ public sealed class McpNoteResult
 [JsonSerializable(typeof(McpVerify))]
 [JsonSerializable(typeof(McpDiff))]
 [JsonSerializable(typeof(McpNoteResult))]
+[JsonSerializable(typeof(McpNotesResult))]
+[JsonSerializable(typeof(List<McpNoteInput>))]
+[JsonSerializable(typeof(McpQuarantinePage))]
+[JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(double))]

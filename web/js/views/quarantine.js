@@ -4,8 +4,10 @@ import { t } from '../i18n.js';
 import { store, runJob, jobRunning, dropCache, refreshState } from '../store.js';
 import { get, ApiError } from '../api.js';
 import { outcomes } from './suggestions.js';
+import { withProgress } from '../progress.js';
+import { verdictChip } from './analysis.js';
 
-let box, ctxRef, batches = [], picked = new Set(); // keys "batch|key"
+let box, ctxRef, batches = [], notes = {}, picked = new Set(); // keys "batch|key"; notes by finding id
 
 export async function render(container, ctx) {
   box = container; ctxRef = ctx;
@@ -16,7 +18,7 @@ export async function render(container, ctx) {
 export function onEvent(what) { if (what === 'state') load(); }
 
 async function load() {
-  batches = await get('/api/quarantine');
+  [batches, notes] = await Promise.all([get('/api/quarantine'), get('/api/notes').then(n => n.notes || {}, () => ({}))]);
   if (!ctxRef.isCurrent()) return;
   const live = new Set(batches.flatMap(b => b.entries.map(e => b.batch + '|' + e.key)));
   for (const k of [...picked]) if (!live.has(k)) picked.delete(k);
@@ -40,6 +42,9 @@ function draw() {
   box.append(
     h('div.qstats',
       tile(size(bytes), t('qHeld')), tile(count(items), t('qItems')), tile(count(batches.length), t('qBatches'))),
+    h('div.card.card-pad.ask-claude',
+      h('div.row-flex', icon('robot'), h('div', h('b', t('qAskClaude')), h('p.muted', t('qAskClaudeText'))), h('span.sp'),
+        h('button.btn', { onclick: () => ctxRef.go('analysis', { scope: 'quarantine' }) }, icon('sparkle'), t('qAskClaude')))),
     ...batches.map(batchCard),
     h('div.note', { class: 'mt' }, icon('info'), h('div', t('qWhere'))));
   for (const n of box.querySelectorAll('.mt')) n.style.marginTop = '18px';
@@ -77,9 +82,16 @@ function batchCard(b) {
       return h('div.item' + (picked.has(k) ? '.on' : ''), cb,
         h('div.i-main', h('div.i-title', icon(e.isDir ? 'folder' : 'file'), h('span', e.originalPath.slice(e.originalPath.lastIndexOf('\\') + 1))),
           h('div.i-path', e.originalPath),
-          e.ruleId ? h('div.i-ev', h('span.ev', e.ruleId), e.files > 1 ? h('span.ev', `${count(e.files)} ${t('statFiles')}`) : null) : null),
+          e.ruleId ? h('div.i-ev', h('span.ev', e.ruleId), e.files > 1 ? h('span.ev', `${count(e.files)} ${t('statFiles')}`) : null) : null,
+          noteOf(e)),
         h('div.i-size', size(e.bytes)));
     })));
+}
+
+function noteOf(e) {
+  const n = e.findingId && notes[e.findingId];
+  if (!n) return null;
+  return h('div.ai-note', h('div.ai-head', icon(n.source === 'claude' ? 'robot' : 'note'), h('b', n.source === 'claude' ? t('claudeSays') : t('yourNote')), verdictChip(n.verdict)), h('p', n.text));
 }
 
 /** sel: Map(batch -> keys[] | null for the whole batch) */
@@ -102,13 +114,16 @@ async function act(kind, sel) {
     if (!ok) return;
   }
   const results = [];
-  for (const [batch, keys] of sel) {
-    try {
-      const j = await runJob(kind === 'delete' ? '/api/delete' : '/api/restore', { batch, keys: keys || undefined, confirm: kind === 'delete' ? 'delete' : undefined });
-      if (j.result) results.push(...j.result.items);
-      else if (j.error) toast(t('errorGeneric', j.error), 'error');
-    } catch (e) { toast(e instanceof ApiError && e.status === 409 ? t('jobBusy') : t('errorGeneric', e.message), 'error'); }
-  }
+  const prog = kind === 'delete' ? { icon: 'trash', title: t('progDeleting') } : { icon: 'undo', title: t('progRestoring') };
+  await withProgress({ ...prog, text: t('progKeepOpen') }, async () => {
+    for (const [batch, keys] of sel) {
+      try {
+        const j = await runJob(kind === 'delete' ? '/api/delete' : '/api/restore', { batch, keys: keys || undefined, confirm: kind === 'delete' ? 'delete' : undefined });
+        if (j.result) results.push(...j.result.items);
+        else if (j.error) toast(t('errorGeneric', j.error), 'error');
+      } catch (e) { toast(e instanceof ApiError && e.status === 409 ? t('jobBusy') : t('errorGeneric', e.message), 'error'); }
+    }
+  });
   picked.clear();
   dropCache(); await refreshState().catch(() => {});
   await load();

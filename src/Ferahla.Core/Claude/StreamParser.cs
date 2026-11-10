@@ -99,11 +99,12 @@ public sealed class StreamParser
                             var ev = new AnalysisEvent { Kind = AnalysisEventKind.Tool, Tool = name, ToolId = Str(c, "id"), Input = input };
                             Add(list, ev);
                             if (name == "add_note" && inp.ValueKind == JsonValueKind.Object)
-                                Add(list, new AnalysisEvent
-                                {
-                                    Kind = AnalysisEventKind.Note, ToolId = ev.ToolId, FindingId = Str(inp, "findingId"),
-                                    Text = Str(inp, "text"), Verdict = Str(inp, "verdict") ?? "check",
-                                });
+                                AddNote(list, ev.ToolId, inp);
+                            // The batch tool: one note event per entry, so the UI counts and shows each.
+                            else if (name == "add_notes" && inp.ValueKind == JsonValueKind.Object
+                                && inp.TryGetProperty("notes", out var notes) && notes.ValueKind == JsonValueKind.Array)
+                                foreach (var item in notes.EnumerateArray())
+                                    if (item.ValueKind == JsonValueKind.Object) AddNote(list, ev.ToolId, item);
                         }
                     break;
                 case "user":
@@ -172,6 +173,11 @@ public sealed class StreamParser
     }
 
     private void Add(List<AnalysisEvent> list, AnalysisEvent ev) { ev.Seq = ++_seq; list.Add(ev); }
+
+    private void AddNote(List<AnalysisEvent> list, string? toolId, JsonElement n) => Add(list, new AnalysisEvent
+    {
+        Kind = AnalysisEventKind.Note, ToolId = toolId, FindingId = Str(n, "findingId"), Text = Str(n, "text"), Verdict = Str(n, "verdict") ?? "check",
+    });
 
     private static string Short(string? name) => name is null ? "" : name.StartsWith(ToolPrefix, StringComparison.Ordinal) ? name[ToolPrefix.Length..] : name;
     private static string? Str(JsonElement e, string p) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
