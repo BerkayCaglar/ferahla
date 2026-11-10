@@ -90,6 +90,10 @@ internal sealed class FerahlaTools
         [Description("Only suggestions that have no note yet")] bool withoutNote = false) =>
         Tools.Findings(risk, category, minMb, limit, offset, toAssess, withoutNote);
 
+    [McpServerTool(Name = "get_finding", ReadOnly = true, Idempotent = true)]
+    [Description("One suggestion in full: every item with size and last change, evidence, what breaks, how to restore, the existing note, and any of its items already in quarantine.")]
+    public static McpFindingDetail GetFinding([Description("Finding id, f- and 10 hex digits")] string findingId) => Tools.Finding(findingId);
+
     [McpServerTool(Name = "inspect_path", ReadOnly = true, Idempotent = true)]
     [Description("Size, file count, last change, biggest subfolders and notable files of a folder in the scan, and the findings inside it.")]
     public static McpInspect InspectPath([Description("Full path, e.g. D:\\Projects\\app")] string path) => Tools.Inspect(path);
@@ -179,6 +183,33 @@ internal static class Tools
                 ExistingNote = notes.TryGetValue(x.Id, out var n) ? n.Text : null,
             }).ToList(),
         };
+    }
+
+    public static McpFindingDetail Finding(string findingId)
+    {
+        var (_, _, f, _) = Session.Get();
+        var id = (findingId ?? "").Trim();
+        var x = f.Findings.FirstOrDefault(y => y.Id == id);
+        var quarantined = QuarantineEntries().Where(e => e.FindingId == id).Select(e => new McpQuarantineEntry
+        {
+            FindingId = e.FindingId, Rule = e.RuleId, OriginalPath = e.OriginalPath, IsDir = e.IsDir, Mb = Mb(e.Bytes), Files = e.Files, MovedAt = e.MovedAt?.ToString("yyyy-MM-dd"),
+        }).ToList();
+        if (x is null && quarantined.Count == 0) return new McpFindingDetail { Id = id, Error = "Unknown finding id; use an id from list_findings or list_quarantine." };
+        var note = Session.Notes.Load().Notes.GetValueOrDefault(id);
+        var d = new McpFindingDetail
+        {
+            Id = id, InQuarantine = quarantined,
+            Note = note?.Text, NoteVerdict = note is null || note.Verdict == NoteVerdict.None ? null : note.Verdict.ToString().ToLowerInvariant(), NoteBy = note?.Source,
+        };
+        if (x is null) { d.Error = "Not suggested by this scan any more (its items were moved); see inQuarantine."; return d; }
+        var top = x.Items.Where(i => i.NestedIn is null).OrderByDescending(i => i.Bytes).ToList();
+        d.Rule = x.RuleId; d.Category = x.Category; d.Risk = RiskName(x.Risk); d.Action = x.Action.ToString().ToLowerInvariant();
+        d.Title = x.Title; d.Mb = Mb(x.Bytes); d.Reason = x.Reason; d.WhatBreaks = x.WhatBreaks; d.HowToRestore = x.HowToRestore; d.Command = x.Command;
+        d.Evidence = x.Evidence; d.LastChange = x.LastWriteUtc?.ToString("yyyy-MM-dd"); d.IsNew = x.IsNew ? true : null;
+        d.GrowthMb = x.GrowthBytes is long g && Math.Abs(g) >= 50 * MB ? Mb(g) : null;
+        d.Items = top.Take(100).Select(i => new McpSize { Path = i.Path, Mb = Mb(i.Bytes), LastChange = i.LastWriteUtc?.ToString("yyyy-MM-dd") }).ToList();
+        d.MoreItems = Math.Max(0, top.Count - 100);
+        return d;
     }
 
     public static McpInspect Inspect(string path)

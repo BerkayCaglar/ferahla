@@ -305,7 +305,7 @@ public sealed class QuarantineEngineTests : IDisposable
     }
 
     [Fact]
-    public void Delete_waits_out_a_reader_that_holds_the_manifest()
+    public async Task Delete_waits_out_a_reader_that_holds_the_manifest()
     {
         // The UI lists the quarantine while a job runs; a reader that didn't share Delete made the manifest replace
         // fail with "access denied" halfway through a delete, leaving the batch half done.
@@ -314,11 +314,12 @@ public sealed class QuarantineEngineTests : IDisposable
         var manifest = Directory.GetFiles(Path.Combine(_home, "quarantine"), "manifest.json", SearchOption.AllDirectories).Single();
 
         var reader = new FileStream(manifest, FileMode.Open, FileAccess.Read, FileShare.ReadWrite); // no FileShare.Delete
-        var release = Task.Run(async () => { await Task.Delay(400); reader.Dispose(); });
-        var listing = Task.Run(() => { for (var i = 0; i < 50; i++) _engine.List(); }); // concurrent readers must not block either
+        var ct = TestContext.Current.CancellationToken;
+        var release = Task.Run(async () => { await Task.Delay(400, ct); reader.Dispose(); }, ct);
+        var listing = Task.Run(() => { for (var i = 0; i < 50; i++) _engine.List(); }, ct); // concurrent readers must not block either
         var del = _engine.Delete(r.Batch!);
-        release.Wait();
-        listing.Wait();
+        await release;
+        await listing;
 
         Assert.Equal(5, del.Items.Count(o => o.Status == OutcomeStatus.Deleted));
         Assert.Empty(_engine.List());

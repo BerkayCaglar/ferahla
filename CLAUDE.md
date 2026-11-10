@@ -46,7 +46,9 @@ This repo is public. The tool is developed against the owner's real machine and 
 - Claude analysis: `src/Ferahla.Mcp/` is `ferahla mcp` (official C# MCP SDK, stdio; read-only tools + `add_note`/`add_notes`, never
   a tool that moves or deletes). `Server/Analysis.cs` runs `claude -p` isolated (`--tools "" --strict-mcp-config
   --setting-sources "" --permission-prompts none`, neutral `claude-work` folder, job object, `ANTHROPIC_API_KEY`
-  removed) and stops if the init event lists any non-Ferahla tool. `Core/Claude/StreamParser.cs` turns stream-json into
+  removed) and stops if the init event lists any non-Ferahla tool; that isolation lives in `Server/ClaudeProcess.cs`,
+  shared with `Server/Chat.cs` (per-suggestion drawer, `web/js/chat.js`: one session per finding, follow-ups
+  `--resume`, one run at a time and never next to an analysis, kept in memory only). `Core/Claude/StreamParser.cs` turns stream-json into
   UI events (tested against `tests/fixtures/claude/`). Notes live in `<home>\notes\notes.json` (`Core/Notes`), keyed by
   the stable finding id. `prompts/analyze.{en,tr}.md` are embedded with `WithCulture="false"` (otherwise MSBuild puts
   the `.tr.md` into a satellite assembly). Don't run real analyses casually: they spend the owner's Claude plan; use

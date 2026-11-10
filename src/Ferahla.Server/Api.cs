@@ -22,7 +22,7 @@ namespace Ferahla.Server;
 
 /// <summary>The UI's API. Handlers are plain <see cref="RequestDelegate"/>s with source-generated JSON (NativeAOT).</summary>
 [SupportedOSPlatform("windows")]
-internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis analysis, Action requestStop)
+internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis analysis, Chat chat, Action requestStop)
 {
     private static readonly string Version = typeof(Api).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
@@ -102,6 +102,14 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         app.MapPost("/api/analysis/start", ctx => Body(ctx, AnalysisJson.Default.AnalysisRequest, r => StartAnalysis(ctx, r)));
         app.MapPost("/api/analysis/stop", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = analysis.Stop() }, ApiJson.Web.OkDto)));
         app.MapPost("/api/analysis/terminal", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = analysis.OpenTerminal() }, ApiJson.Web.OkDto)));
+        app.MapGet("/api/chat", async ctx =>
+        {
+            string id = ctx.Request.Query["finding"].ToString();
+            if (!NoteStore.IsFindingId(id)) { await Error(ctx, 400, "not a finding id"); return; }
+            await Json(ctx, chat.State(id, await analysis.InfoAsync()), AnalysisJson.Web.ChatDto);
+        });
+        app.MapPost("/api/chat/send", ctx => Body(ctx, AnalysisJson.Default.ChatRequest, r => SendChat(ctx, r)));
+        app.MapPost("/api/chat/stop", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = chat.Stop() }, ApiJson.Web.OkDto)));
         app.MapPost("/api/note", ctx => Body(ctx, ApiJson.Web.NoteRequest, r =>
         {
             if (!NoteStore.IsFindingId(r.FindingId)) return Error(ctx, 400, "not a finding id");
@@ -220,11 +228,26 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         }, () => { state.InvalidateFindings(); hub.Changed("quarantine"); }, out var status), status);
     }
 
+    private async Task SendChat(HttpContext ctx, ChatRequest r)
+    {
+        if (!NoteStore.IsFindingId(r.FindingId)) { await Error(ctx, 400, "not a finding id"); return; }
+        var info = await analysis.InfoAsync();
+        if (!info.Installed) { await Error(ctx, 400, Lang.T("Claude Code is not installed", "Claude Code kurulu değil")); return; }
+        if (!info.LoggedIn) { await Error(ctx, 400, Lang.T("Claude Code is not logged in", "Claude Code'da oturum açılmamış")); return; }
+        Snapshot snap;
+        try { snap = state.Scan(r.Scan).Snap; }
+        catch (FileNotFoundException ex) { await Error(ctx, 404, ex.Message); return; }
+        if (chat.Start(snap.Id, r, () => { state.InvalidateFindings(); hub.Changed("notes"); }) is { } problem) { await Error(ctx, 409, problem); return; }
+        ctx.Response.StatusCode = 202;
+        await Json(ctx, new OkDto(), ApiJson.Web.OkDto);
+    }
+
     private async Task StartAnalysis(HttpContext ctx, AnalysisRequest r)
     {
         var info = await analysis.InfoAsync(refresh: true);
         if (!info.Installed) { await Error(ctx, 400, Lang.T("Claude Code is not installed", "Claude Code kurulu değil")); return; }
         if (!info.LoggedIn) { await Error(ctx, 400, Lang.T("Claude Code is not logged in", "Claude Code'da oturum açılmamış")); return; }
+        if (chat.Running) { await Error(ctx, 409, Lang.T("Wait for Claude to finish answering", "Claude'un yanıtı bitirmesini bekle")); return; }
         Snapshot snap;
         try { snap = state.Scan(r.Scan).Snap; }
         catch (FileNotFoundException ex) { await Error(ctx, 404, ex.Message); return; }

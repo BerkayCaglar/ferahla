@@ -75,6 +75,7 @@ export function startEvents() {
       return;
     }
     if (type === 'analysis') { emit('analysis', data); return; }
+    if (type === 'chat') { emit('chat', data); return; }
     if (type === 'state') { dropCache(); refreshState().catch(() => {}); }
   }, ok => {
     if (ok === store.connected) return;

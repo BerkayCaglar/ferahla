@@ -17,6 +17,8 @@ public enum AnalysisEventKind
     [JsonStringEnumMemberName("rateLimit")] RateLimit,
     [JsonStringEnumMemberName("result")] Result,
     [JsonStringEnumMemberName("error")] Error,
+    /// <summary>What the user asked (per-suggestion chat; never produced by the parser).</summary>
+    [JsonStringEnumMemberName("user")] User,
 }
 
 public sealed class AnalysisEvent

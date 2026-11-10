@@ -161,80 +161,35 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
 
     private async Task Run(string scanId, AnalysisRequest req, int target, CancellationToken ct)
     {
-        var claude = FindClaude() ?? throw new InvalidOperationException(Lang.T("Claude Code is not installed", "Claude Code kurulu değil"));
         Directory.CreateDirectory(WorkDir);
-        var prompt = Path.Combine(WorkDir, "analyze.md");
-        File.WriteAllText(prompt, Prompt(Lang.Current), new UTF8Encoding(false));
-        var mcpConfig = Path.Combine(WorkDir, "ferahla-mcp.json");
-        File.WriteAllText(mcpConfig, McpConfig(scanId), new UTF8Encoding(false));
+        var prompt = ClaudeProcess.WritePrompt(WorkDir, "analyze");
+        var mcpConfig = ClaudeProcess.WriteMcpConfig(WorkDir, "ferahla-mcp.json", home, scanId);
         var sessionId = Guid.NewGuid().ToString();
-
-        var args = new List<string>
-        {
-            "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-            "--append-system-prompt-file", prompt,
-            "--mcp-config", mcpConfig, "--strict-mcp-config",
-            "--tools", "", "--allowedTools", "mcp__ferahla__*", "--permission-prompts", "none",
-            "--setting-sources", "", "--session-id", sessionId, "--max-turns", Math.Clamp(req.MaxTurns > 0 ? req.MaxTurns : AnalysisScope.Turns(target), 5, 150).ToString(System.Globalization.CultureInfo.InvariantCulture),
-        };
-        if (req.Model is { Length: > 0 } model && model.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '[' or ']')) { args.Add("--model"); args.Add(model); }
-
-        var psi = Start(claude, args, WorkDir);
-        // In -p mode an API key in the environment takes precedence over the user's subscription.
-        psi.Environment.Remove("ANTHROPIC_API_KEY");
+        var args = ClaudeProcess.Args(prompt, mcpConfig, sessionId, resume: false, req.MaxTurns > 0 ? req.MaxTurns : AnalysisScope.Turns(target), req.Model);
         lock (_lock) _last.SessionId = sessionId;
-
-        using var job = new JobObject();
-        using var p = Process.Start(psi) ?? throw new InvalidOperationException("claude did not start");
-        job.Assign(p);
-        lock (_lock) _job = job;
         try
         {
-            var stdin = p.StandardInput.BaseStream;
-            await stdin.WriteAsync(Encoding.UTF8.GetBytes(UserMessage(scanId, AnalysisScope.Normalize(req.Scope), target)), ct);
-            stdin.Close();
-            var stderr = p.StandardError.ReadToEndAsync(ct);
-            using var reg = ct.Register(job.Terminate);
-
-            var parser = new StreamParser();
-            string? line;
-            var initChecked = false;
-            while ((line = await p.StandardOutput.ReadLineAsync(ct)) is not null)
+            await ClaudeProcess.Run(WorkDir, args, UserMessage(scanId, AnalysisScope.Normalize(req.Scope), target), ev =>
             {
-                foreach (var ev in parser.Feed(line))
-                {
-                    if (ev.Kind == AnalysisEventKind.Init && !initChecked)
-                    {
-                        initChecked = true;
-                        if (StreamParser.CheckInit(ev) is { } problem)
-                        {
-                            job.Terminate();
-                            Publish(new AnalysisEvent { Kind = AnalysisEventKind.Error, Text = problem });
-                            throw new InvalidOperationException(Lang.T("Analysis stopped for safety: ", "Analiz güvenlik için durduruldu: ") + problem);
-                        }
-                    }
-                    if (ev.Kind == AnalysisEventKind.RateLimit && ev.Usage is { } u)
-                    {
-                        lock (_lock) _last.Usage = u;
-                        try { File.WriteAllBytes(UsageFile, JsonSerializer.SerializeToUtf8Bytes(u, AnalysisJson.Default.UsageInfo)); } catch (IOException) { }
-                    }
-                    if (ev.Kind == AnalysisEventKind.Note) lock (_lock) _last.Notes++;
-                    if (ev.Kind == AnalysisEventKind.Result) lock (_lock) _last.Outcome = ev.Subtype;
-                    Publish(ev);
-                }
-            }
-            await p.WaitForExitAsync(ct);
-            if (!initChecked)
-            {
-                var err = (await stderr).Trim();
-                throw new InvalidOperationException(err.Length > 0 ? err[..Math.Min(err.Length, 400)] : $"claude exited with code {p.ExitCode}");
-            }
+                RecordUsage(ev);
+                if (ev.Kind == AnalysisEventKind.Note) lock (_lock) _last.Notes++;
+                if (ev.Kind == AnalysisEventKind.Result) lock (_lock) _last.Outcome = ev.Subtype;
+                Publish(ev);
+            }, j => { lock (_lock) _job = j; }, ct);
         }
         finally
         {
-            lock (_lock) { _job = null; _last.FinishedAt = DateTimeOffset.UtcNow; }
+            lock (_lock) _last.FinishedAt = DateTimeOffset.UtcNow;
             hub.Changed("notes");
         }
+    }
+
+    /// <summary>Plan usage from any run (analysis or chat), kept for the Analysis page.</summary>
+    public void RecordUsage(AnalysisEvent ev)
+    {
+        if (ev.Kind != AnalysisEventKind.RateLimit || ev.Usage is not { } u) return;
+        lock (_lock) _last.Usage = u;
+        try { File.WriteAllBytes(UsageFile, JsonSerializer.SerializeToUtf8Bytes(u, AnalysisJson.Default.UsageInfo)); } catch (IOException) { }
     }
 
     private void Publish(AnalysisEvent ev)
@@ -244,24 +199,6 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
             if (_events.Count < 5000) _events.Add(ev);
         }
         hub.Publish("analysis", ev, AnalysisJson.Web.AnalysisEvent);
-    }
-
-    private string McpConfig(string scanId)
-    {
-        var exe = Environment.ProcessPath ?? "ferahla.exe";
-        using var ms = new MemoryStream();
-        using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true }))
-        {
-            w.WriteStartObject(); w.WriteStartObject("mcpServers"); w.WriteStartObject("ferahla");
-            w.WriteString("type", "stdio"); w.WriteString("command", exe);
-            w.WriteStartArray("args");
-            foreach (var a in new[] { "mcp", "--scan", scanId, "--home", home }) w.WriteStringValue(a);
-            w.WriteEndArray();
-            // Finding titles in the UI's language, whatever Windows' language is.
-            w.WriteStartObject("env"); w.WriteString("FERAHLA_LANG", Lang.Current); w.WriteEndObject();
-            w.WriteEndObject(); w.WriteEndObject(); w.WriteEndObject();
-        }
-        return Encoding.UTF8.GetString(ms.ToArray());
     }
 
     internal static string UserMessage(string scanId, string scope, int target) => (scope, Lang.IsTurkish) switch
@@ -281,14 +218,6 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
         _ =>
             $"Analyze the Ferahla scan ({scanId}). Write a note on each of the {target} suggestions to assess (list_findings toAssess=true). Write the notes and the summary in English.",
     };
-
-    internal static string Prompt(string lang)
-    {
-        var name = lang == "tr" ? "prompts/analyze.tr.md" : "prompts/analyze.en.md";
-        using var s = typeof(Analysis).Assembly.GetManifestResourceStream(name) ?? throw new InvalidOperationException("prompt missing: " + name);
-        using var r = new StreamReader(s);
-        return r.ReadToEnd();
-    }
 
     public bool Stop()
     {
@@ -331,7 +260,7 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
         return true;
     }
     /// <summary>ProcessStartInfo for claude.exe, or claude.cmd through cmd.exe (npm installs).</summary>
-    private static ProcessStartInfo Start(string exe, IEnumerable<string> args, string workDir)
+    internal static ProcessStartInfo Start(string exe, IEnumerable<string> args, string workDir)
     {
         ProcessStartInfo psi;
         if (exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
@@ -365,6 +294,9 @@ internal sealed class Analysis(string home, EventHub hub, Jobs jobs)
 [System.Text.Json.Serialization.JsonSerializable(typeof(AnalysisDto))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(AnalysisRequest))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(ClaudeInfo))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(ChatRequest))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(ChatDto))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(ChatEventDto))]
 internal sealed partial class AnalysisJson : System.Text.Json.Serialization.JsonSerializerContext
 {
     private static AnalysisJson? _web;

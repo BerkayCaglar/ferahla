@@ -472,7 +472,8 @@ button.bar-row:hover { background: var(--surface-2); }
 .item .i-size { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .item .i-size small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); }
 .item.on .i-size { color: var(--accent); }
-.item .i-size .reveal { margin-top: 4px; margin-right: -6px; }
+.item .i-size .row-icons { display: flex; justify-content: flex-end; gap: 2px; margin-top: 4px; margin-right: -6px; }
+.item .i-size .ask .ico { color: var(--accent); }
 .item .i-more { margin-top: 6px; }
 .item details { font-size: 13px; color: var(--ink-2); }
 .item summary { cursor: pointer; color: var(--accent); font-size: 12.5px; font-weight: 600; width: max-content; list-style: none; display: inline-flex; align-items: center; gap: 4px; }
@@ -757,3 +758,41 @@ dialog::backdrop { background: rgba(8, 14, 18, .45); backdrop-filter: blur(3px);
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- Claude chat drawer ---------- */
+
+dialog.drawer {
+  margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(480px, 100vw); border-radius: 16px 0 0 16px;
+  border-right: 0;
+}
+dialog.drawer[open] { animation: drawer-in .2s ease; }
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawer-head { display: flex; gap: 12px; align-items: flex-start; padding: 18px 18px 10px; border-bottom: 1px solid var(--line-soft); }
+.drawer-head .ico-wrap { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
+.drawer-head .dh-main { flex: 1; min-width: 0; }
+.drawer-head h2 { font-size: 16px; overflow-wrap: anywhere; }
+.drawer-head .small { font-size: 12px; overflow-wrap: anywhere; margin-top: 2px; }
+.chat-quick { display: flex; align-items: center; gap: 8px; padding: 10px 18px; flex-wrap: wrap; }
+.select-sm { padding-top: 4px; padding-bottom: 4px; font-size: 12.5px; }
+.chat-msgs { flex: 1; overflow-y: auto; padding: 8px 18px 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg { border-radius: 12px; padding: 9px 12px; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.me { align-self: flex-end; max-width: 85%; background: var(--accent); color: #fff; display: flex; gap: 6px; align-items: center; }
+.msg.me .ico { width: 15px; height: 15px; flex: none; }
+.msg.ai { align-self: stretch; background: var(--surface-3); display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; }
+.msg.ai code { font-family: var(--mono); font-size: 12px; background: var(--surface); border-radius: 4px; padding: 0 4px; }
+.msg.ai > .ico { width: 18px; height: 18px; color: var(--accent); margin-top: 1px; }
+.msg-step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.msg-step .ico { width: 15px; height: 15px; }
+.msg-step code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.msg-step.warn { color: var(--review); }
+.msg-step.bad { color: var(--danger); }
+.chat-hint { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; color: var(--muted); font-size: 13px; padding: 6px 0; }
+.chat-hint .ico { width: 17px; height: 17px; color: var(--accent); flex: none; margin-top: 1px; }
+.chat-hint p { flex: 1 1 200px; }
+.chat-status { display: flex; align-items: center; gap: 8px; min-height: 22px; padding: 0 18px; font-size: 12.5px; color: var(--muted); }
+.chat-status .ico { width: 15px; height: 15px; }
+.chat-compose { display: flex; gap: 8px; align-items: flex-end; padding: 10px 18px 18px; border-top: 1px solid var(--line-soft); }
+.chat-input { flex: 1; resize: none; min-height: 44px; max-height: 160px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
+  font: inherit; font-size: 13.5px; background: var(--surface); color: var(--ink); }
+.chat-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+@media (max-width: 560px) { dialog.drawer { border-radius: 0; } }

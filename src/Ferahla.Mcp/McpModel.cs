@@ -56,6 +56,34 @@ public sealed class McpFinding
     public string? ExistingNote { get; set; }
 }
 
+/// <summary>One finding in full, for the per-suggestion chat.</summary>
+public sealed class McpFindingDetail
+{
+    public string Id { get; set; } = "";
+    public string? Error { get; set; }
+    public string? Rule { get; set; }
+    public string? Category { get; set; }
+    public string? Risk { get; set; }
+    public string? Action { get; set; }
+    public string? Title { get; set; }
+    public double Mb { get; set; }
+    public string? Reason { get; set; }
+    public string? WhatBreaks { get; set; }
+    public string? HowToRestore { get; set; }
+    public string? Command { get; set; }
+    public List<string> Evidence { get; set; } = [];
+    public List<McpSize> Items { get; set; } = [];
+    public int MoreItems { get; set; }
+    public string? LastChange { get; set; }
+    public bool? IsNew { get; set; }
+    public double? GrowthMb { get; set; }
+    public string? Note { get; set; }
+    public string? NoteVerdict { get; set; }
+    public string? NoteBy { get; set; }
+    /// <summary>Items of this finding that already sit in quarantine.</summary>
+    public List<McpQuarantineEntry> InQuarantine { get; set; } = [];
+}
+
 public sealed class McpInspect
 {
     public string Path { get; set; } = "";
@@ -162,6 +190,7 @@ public sealed class McpQuarantineEntry
 [JsonSerializable(typeof(McpNotesResult))]
 [JsonSerializable(typeof(List<McpNoteInput>))]
 [JsonSerializable(typeof(McpQuarantinePage))]
+[JsonSerializable(typeof(McpFindingDetail))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]

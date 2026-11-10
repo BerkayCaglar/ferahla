@@ -230,6 +230,7 @@ async function boot(relang = false) {
   let lastScanId = currentScan()?.id, lastRoot = store.root;
   subscribe((what, data) => {
     if (what === 'analysis') { route().view.onEvent?.('analysis', data); return; }
+    if (what === 'chat') return; // the chat drawer listens itself
     if (what === 'offline') toast(t('offline'), 'warn');
     if (what === 'online') toast(t('reconnected'), 'ok');
     renderTopbar(); badges();

@@ -67,11 +67,34 @@ public class StreamParserTests
     }
 
     [Theory]
-    [InlineData("en")]
-    [InlineData("tr")]
-    public void Prompts_are_embedded_in_the_main_assembly(string lang) =>
+    [InlineData("analyze", "en")]
+    [InlineData("analyze", "tr")]
+    [InlineData("chat", "en")]
+    [InlineData("chat", "tr")]
+    public void Prompts_are_embedded_in_the_main_assembly(string name, string lang) =>
         // "analyze.tr.md" once landed in a "tr" satellite assembly (culture detection); the run then failed.
-        Assert.Contains("mcp__ferahla__", Ferahla.Server.Analysis.Prompt(lang));
+        Assert.Contains("mcp__ferahla__", Ferahla.Server.ClaudeProcess.Prompt(name, lang));
+
+    [Fact]
+    public void Runs_stay_isolated_and_follow_ups_resume_the_session()
+    {
+        var first = Ferahla.Server.ClaudeProcess.Args("p.md", "m.json", "sid", resume: false, 15, "haiku");
+        var next = Ferahla.Server.ClaudeProcess.Args("p.md", "m.json", "sid", resume: true, 500, "bad model; rm");
+        foreach (var a in new[] { first, next })
+        {
+            Assert.Equal("", a[a.IndexOf("--tools") + 1]);
+            Assert.Equal("", a[a.IndexOf("--setting-sources") + 1]);
+            Assert.Contains("--strict-mcp-config", a);
+            Assert.Equal("m.json", a[a.IndexOf("--mcp-config") + 1]);
+            Assert.Equal("p.md", a[a.IndexOf("--append-system-prompt-file") + 1]);
+        }
+        Assert.Equal("sid", first[first.IndexOf("--session-id") + 1]);
+        Assert.DoesNotContain("--resume", first);
+        Assert.Equal("sid", next[next.IndexOf("--resume") + 1]);
+        Assert.Equal("150", next[next.IndexOf("--max-turns") + 1]);
+        Assert.DoesNotContain("--model", next); // not a model name: dropped
+        Assert.Equal("haiku", first[first.IndexOf("--model") + 1]);
+    }
 
     [Fact]
     public void Garbage_and_unknown_events_are_ignored()
@@ -184,6 +207,13 @@ public sealed class McpToolTests : IDisposable
         Assert.Equal(2, batch.Failed.Count);
         Assert.Equal("Rebuilt by npm install.", new NoteStore(home).Load().Notes[f.Id].Text);
         Assert.Equal(0, Tools.Quarantine(25, 0).Total);
+
+        var detail = Tools.Finding(f.Id);
+        Assert.Null(detail.Error);
+        Assert.Equal("Rebuilt by npm install.", detail.Note);
+        Assert.Equal("remove", detail.NoteVerdict);
+        Assert.EndsWith("node_modules", Assert.Single(detail.Items).Path);
+        Assert.NotNull(Tools.Finding("f-0000000000").Error);
     }
 
     [Fact]
@@ -207,5 +237,6 @@ public sealed class McpToolTests : IDisposable
         Assert.EndsWith("node_modules", e.OriginalPath);
         Assert.True(Tools.Notes([new McpNoteInput { FindingId = f.Id, Text = "Safe to delete; npm install restores it.", Verdict = "remove" }]).Saved == 1);
         Assert.Equal("Safe to delete; npm install restores it.", Tools.Quarantine(25, 0).Entries[0].ExistingNote);
+        Assert.Single(Tools.Finding(f.Id).InQuarantine);
     }
 }

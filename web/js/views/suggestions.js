@@ -5,6 +5,7 @@ import { store, cached, currentScan, runJob, jobRunning, dropCache, refreshState
 import { ApiError, post } from '../api.js';
 import { verdictChip } from './analysis.js';
 import { progressView, withProgress } from '../progress.js';
+import { openChat } from '../chat.js';
 
 const GROUPS = ['safe', 'regenerable', 'review', 'personal'];
 let box, ctxRef, data, bar, filter = { q: '', risk: 'all' };
@@ -152,14 +153,16 @@ function row(f) {
       f.evidence?.length ? h('div.i-ev', f.evidence.slice(0, 4).map(e => h('span.ev', icon('check'), e))) : null,
       h('div.i-more', details)),
     h('div.i-size', size(f.bytes), grew ? h('small', grew) : f.action === 'info' ? h('small', t('act_info')) : null,
-      top.length ? revealButton(top) : null));
+      h('div.row-icons',
+        h('button.icon-btn.ask', { title: t('chAskClaude'), 'aria-label': t('chAskClaude'), onclick: () => openChat(f, ctxRef.go) }, icon('robot')),
+        top.length ? revealButton(top) : null)));
   return el;
 }
 
 /** Opens Explorer on the item; with several top-level items, a menu picks which one. */
 function revealButton(top) {
   const open = p => post('/api/reveal', { path: p }).catch(e => toast(e.message, 'error'));
-  const btn = h('button.icon-btn.reveal', {
+  const btn = h('button.icon-btn', {
     title: t('showInExplorer'), 'aria-label': t('showInExplorer'),
     onclick: () => top.length === 1 ? open(top[0].path)
       : menu(btn, top.slice(0, 20).map(i => ({ icon: 'folder', title: i.path.slice(i.path.lastIndexOf('\\') + 1) || i.path, sub: i.path, right: size(i.bytes), run: () => open(i.path) }))),
