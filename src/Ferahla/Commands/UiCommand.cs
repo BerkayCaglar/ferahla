@@ -21,34 +21,86 @@ internal static class UiCommand
         return cmd;
     }
 
+    // Set only by a Ferahla that just updated itself, for the new exe it starts (same address, so the open tab reloads).
+    private const string RestartPort = "FERAHLA_RESTART_PORT", RestartToken = "FERAHLA_RESTART_TOKEN";
+
     public static async Task<int> Run(bool noBrowser, int port, CancellationToken ct)
     {
         var home = SnapshotStore.DefaultHome();
-        if (InstanceInfo.Load(home) is { } running && await running.AliveAsync())
+        var (restartPort, restartToken) = TakeRestart();
+        if (restartToken is null && InstanceInfo.Load(home) is { } running && await running.AliveAsync())
         {
             Console.WriteLine(Lang.T("Ferahla is already open; showing it.", "Ferahla zaten açık; o gösteriliyor."));
             if (!noBrowser) Open(running.LaunchUrl);
             else Console.WriteLine(running.LaunchUrl);
             return ExitCodes.Ok;
         }
+        _ = FerahlaServer.CleanupAfterUpdate(home);
+        if (restartToken is not null) { port = restartPort; await WaitForPort(port, ct); }
 
-        await using var server = await FerahlaServer.StartAsync(new ServerOptions { Home = home, Port = port, IdleTimeout = noBrowser ? null : TimeSpan.FromMinutes(3) });
-        new InstanceInfo { Pid = Environment.ProcessId, Port = server.Port, Token = server.Token }.Save(home);
-        try
+        bool restart;
+        await using (var server = await FerahlaServer.StartAsync(new ServerOptions
         {
-            Console.WriteLine(Lang.T(
-                $"Ferahla is running at {server.BaseUrl}. It closes by itself a few minutes after the last tab; Ctrl+C stops it now.",
-                $"Ferahla {server.BaseUrl} adresinde çalışıyor. Son sekme kapandıktan birkaç dakika sonra kendiliğinden kapanır; hemen durdurmak için Ctrl+C."));
-            if (noBrowser) Console.WriteLine(server.LaunchUrl);
-            else Open(server.LaunchUrl);
-            await server.WaitForShutdownAsync(ct);
+            Home = home, Port = port, Token = restartToken, CheckUpdates = true,
+            IdleTimeout = noBrowser ? null : TimeSpan.FromMinutes(3),
+        }))
+        {
+            new InstanceInfo { Pid = Environment.ProcessId, Port = server.Port, Token = server.Token }.Save(home);
+            try
+            {
+                Console.WriteLine(Lang.T(
+                    $"Ferahla is running at {server.BaseUrl}. It closes by itself a few minutes after the last tab; Ctrl+C stops it now.",
+                    $"Ferahla {server.BaseUrl} adresinde çalışıyor. Son sekme kapandıktan birkaç dakika sonra kendiliğinden kapanır; hemen durdurmak için Ctrl+C."));
+                if (noBrowser) Console.WriteLine(server.LaunchUrl);
+                else if (restartToken is null) Open(server.LaunchUrl);
+                await server.WaitForShutdownAsync(ct);
+            }
+            finally
+            {
+                if (InstanceInfo.Load(home) is { } mine && mine.Pid == Environment.ProcessId)
+                    try { File.Delete(InstanceInfo.PathIn(home)); } catch (IOException) { }
+            }
+            restart = server.RestartRequested;
+            port = server.Port;
+            restartToken = server.Token;
         }
-        finally
+        // The server is disposed (port released): start the new exe that now has this exe's name.
+        if (restart && Environment.ProcessPath is { } exe)
         {
-            if (InstanceInfo.Load(home) is { } mine && mine.Pid == Environment.ProcessId)
-                try { File.Delete(InstanceInfo.PathIn(home)); } catch (IOException) { }
+            Console.WriteLine(Lang.T("Updated; restarting…", "Güncellendi; yeniden başlatılıyor…"));
+            var psi = new ProcessStartInfo(exe, noBrowser ? "ui --no-browser" : "ui") { UseShellExecute = false };
+            psi.Environment[RestartPort] = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            psi.Environment[RestartToken] = restartToken;
+            Process.Start(psi)?.Dispose();
         }
         return ExitCodes.Ok;
+    }
+
+    /// <summary>Reads and clears the restart variables, so they never reach child processes (Claude, uninstallers).</summary>
+    private static (int Port, string? Token) TakeRestart()
+    {
+        var p = Environment.GetEnvironmentVariable(RestartPort);
+        var t = Environment.GetEnvironmentVariable(RestartToken);
+        Environment.SetEnvironmentVariable(RestartPort, null);
+        Environment.SetEnvironmentVariable(RestartToken, null);
+        if (t is null || !System.Text.RegularExpressions.Regex.IsMatch(t, "^[0-9a-f]{64}$")) return (0, null);
+        if (!int.TryParse(p, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var port) || port is < 1024 or > 65535) return (0, null);
+        return (port, t);
+    }
+
+    /// <summary>The old process may still hold the port for a moment.</summary>
+    private static async Task WaitForPort(int port, CancellationToken ct)
+    {
+        for (var i = 0; i < 40; i++)
+        {
+            try
+            {
+                var l = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+                l.Start(); l.Stop();
+                return;
+            }
+            catch (System.Net.Sockets.SocketException) { await Task.Delay(250, ct); }
+        }
     }
 
     private static void Open(string url)

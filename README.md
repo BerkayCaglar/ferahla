@@ -109,7 +109,8 @@ The notes show up next to the suggestions and in the HTML report.
 
 ## Privacy
 
-- No telemetry, no network access. The HTML report loads nothing from the internet.
+- No telemetry. The only network request is the update check (GitHub's latest release, while the window is open; you
+  can turn it off). The HTML report loads nothing from the internet. See [docs/privacy.md](docs/privacy.md).
 - Scans and reports stay on your machine. **The report contains your file paths**: look at it before you share it.
 
 ## Building

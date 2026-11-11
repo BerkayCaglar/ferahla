@@ -22,9 +22,9 @@ namespace Ferahla.Server;
 
 /// <summary>The UI's API. Handlers are plain <see cref="RequestDelegate"/>s with source-generated JSON (NativeAOT).</summary>
 [SupportedOSPlatform("windows")]
-internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis analysis, Chat chat, Action requestStop)
+internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis analysis, Chat chat, Updates updates, bool checkUpdates, Action requestStop)
 {
-    private static readonly string Version = typeof(Api).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    internal static readonly string Version = typeof(Api).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     /// <summary>FERAHLA_DEMO=1: nothing from this machine (drives, apps) is shown; used for README screenshots.</summary>
     private static bool Demo => Environment.GetEnvironmentVariable("FERAHLA_DEMO") == "1";
@@ -119,6 +119,21 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
             return Json(ctx, new OkDto(), ApiJson.Web.OkDto);
         }));
 
+        // ---- updates (the only network access; see Updates) ----
+        app.MapPost("/api/update/check", ctx => Body(ctx, ApiJson.Web.OkDto, async r =>
+        {
+            // "now" from the About dialog's button; window focus checks at most every 2 minutes.
+            if (checkUpdates) await updates.CheckAsync(r.Message == "now" ? TimeSpan.FromSeconds(10) : Updates.OnFocus, ctx.RequestAborted);
+            await Json(ctx, updates.State(), ApiJson.Web.UpdateDto);
+        }));
+        app.MapPost("/api/update/settings", ctx => Body(ctx, ApiJson.Web.UpdateSettingsRequest, async r =>
+        {
+            updates.SetEnabled(r.Enabled);
+            if (r.Enabled && checkUpdates) await updates.CheckAsync(TimeSpan.Zero, ctx.RequestAborted);
+            await Json(ctx, updates.State(), ApiJson.Web.UpdateDto);
+        }));
+        app.MapPost("/api/update/install", ctx => Body(ctx, ApiJson.Web.OkDto, _ => StartUpdate(ctx)));
+
         app.MapPost("/api/quit", ctx => Body(ctx, ApiJson.Web.OkDto, async _ =>
         {
             await Json(ctx, new OkDto(), ApiJson.Web.OkDto);
@@ -134,7 +149,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         var s = new StateDto
         {
             Version = Version, Lang = Lang.Current, Scans = state.Store.ListMeta(), Job = jobs.Current,
-            DefaultRoot = known.GetValueOrDefault("SystemDrive"),
+            DefaultRoot = known.GetValueOrDefault("SystemDrive"), Update = updates.State(),
         };
         if (Demo)
         {
@@ -175,6 +190,21 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
     }
 
     // ---- jobs ----
+
+    private Task StartUpdate(HttpContext ctx)
+    {
+        var u = updates.State();
+        if (u.Available is null) return Error(ctx, 404, Lang.T("No update available", "Güncelleme yok"));
+        if (!u.CanInstall) return Error(ctx, 409, Lang.T("This copy can't update itself; download it from GitHub", "Bu kopya kendini güncelleyemiyor; GitHub'dan indir"));
+        if (chat.Running) return Error(ctx, 409, Lang.T("Wait for Claude to finish", "Claude'un bitirmesini bekle"));
+        return Started(ctx, jobs.TryStart(JobKind.Update, u.Available.Version, false,
+            ct => updates.InstallAsync((done, total) => jobs.Update(s => { s.DoneBytes = done; s.TotalBytes = total; s.Done = done >= total ? 1 : 0; s.Total = 1; }), ct),
+            () =>
+            {
+                // The final job event goes out first; then the server stops and UiCommand starts the new exe.
+                if (updates.Installed) _ = Task.Delay(700).ContinueWith(_ => requestStop(), TaskScheduler.Default);
+            }, out var status), status);
+    }
 
     private Task StartScan(HttpContext ctx, ScanRequest r)
     {

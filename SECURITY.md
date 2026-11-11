@@ -37,6 +37,13 @@ checked (`src/Ferahla.Server/Security.cs`, pinned by `ServerTests`):
 - only GET and POST; GET never changes anything; POST bodies must be `application/json`;
 - a strict Content-Security-Policy without `unsafe-inline`, `X-Frame-Options: DENY`, `nosniff`, no referrer.
 
+**Updates** (`src/Ferahla.Server/Updates.cs`, pinned by `UpdateTests`) come only from this repository's GitHub
+releases over HTTPS: the release must be newer, not a draft or prerelease, and its `ferahla.exe` and
+`ferahla.exe.sha256` must be that tag's own assets. The download must match the checksum and report the expected
+version before it replaces the running exe (the old one is kept until the new one has started). Starting an update
+is an API call like any other, so it needs the token. Until the binaries are code-signed, the checksum comes from the
+same release as the exe; signing (see `docs/code-signing.md`) will add a signature check.
+
 **System commands** come from a fixed allowlist with fixed arguments (`SystemActions.cs`); each asks for elevation for
 that one step. `DISM /ResetBase` is never run. Ferahla itself never runs elevated.
 

@@ -9,6 +9,7 @@ export const store = {
   state: null,       // StateDto from /api/state
   root: null,        // selected drive/folder root
   connected: true,
+  restarting: false,  // set while a self-update restarts the server
   selection: new Set(), // finding ids selected on the Suggestions page (kept while navigating)
 };
 
@@ -76,6 +77,7 @@ export function startEvents() {
     }
     if (type === 'analysis') { emit('analysis', data); return; }
     if (type === 'chat') { emit('chat', data); return; }
+    if (type === 'update') { if (store.state) store.state.update = data; emit('update'); return; }
     if (type === 'state') { dropCache(); refreshState().catch(() => {}); }
   }, ok => {
     if (ok === store.connected) return;

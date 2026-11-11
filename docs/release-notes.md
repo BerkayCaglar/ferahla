@@ -17,6 +17,7 @@ The file is not code-signed yet, so Windows SmartScreen may warn on first run: c
 - Optional second opinion from your own Claude Code installation: notes for every suggestion (or only the quarantined
   ones before you delete them), and a side panel per suggestion for a quick or deep analysis and your own questions
 - Progress for quarantine, restore and delete; open any suggestion in Windows Explorer
+- Updates itself: a bar shows when a new version is out, and **Update now** swaps it in and reloads the window
 - Everything also on the command line with `--json`; English and Turkish; light and dark
 
 ## Requirements
@@ -25,4 +26,4 @@ Windows 10 1809 or later, or Windows 11 (x64). No .NET installation needed.
 
 See [SECURITY.md](https://github.com/BerkayCaglar/ferahla/blob/main/SECURITY.md) for how your files and the local
 window are protected, and [docs/privacy.md](https://github.com/BerkayCaglar/ferahla/blob/main/docs/privacy.md):
-no telemetry, no network.
+no telemetry; the only network request is the update check, which you can turn off.

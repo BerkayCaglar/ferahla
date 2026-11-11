@@ -53,6 +53,10 @@ This repo is public. The tool is developed against the owner's real machine and 
   the stable finding id. `prompts/analyze.{en,tr}.md` are embedded with `WithCulture="false"` (otherwise MSBuild puts
   the `.tr.md` into a satellite assembly). Don't run real analyses casually: they spend the owner's Claude plan; use
   the fixtures and `--model haiku` when a real run is unavoidable.
+- Updates: `Server/Updates.cs` is Ferahla's only network access (GitHub's latest release of this repo, only while a UI
+  tab is open, switch in `<home>/update.json`; tests never set `ServerOptions.CheckUpdates`). Self-update downloads
+  `ferahla.exe` + `.sha256` from that release only, runs `--version`, renames the running exe to `*.old.exe`, and
+  `UiCommand` restarts it with the same port and token (`FERAHLA_RESTART_*`, cleared on read) so the tab reloads.
 - `web/`: the UI, embedded into the exe (no build step): `index.html`, `css/app.css` (design tokens, light/dark),
   `js/` ES modules (`app.js` shell + router, `store.js`, `api.js`, `ui.js`, `i18n.js` with en+tr, `views/*`). CSP has
   no `unsafe-inline`: never use inline `style`/`on*` attributes or innerHTML; set styles through the CSSOM.

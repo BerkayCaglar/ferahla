@@ -20,6 +20,10 @@ public sealed class ServerOptions
     public int Port { get; init; }
     /// <summary>Stop when no UI tab has been connected for this long and no job runs. Null = never.</summary>
     public TimeSpan? IdleTimeout { get; init; } = TimeSpan.FromMinutes(3);
+    /// <summary>Reuse this token (after a self-update restart, so the open tab keeps working). Null = a new one.</summary>
+    public string? Token { get; init; }
+    /// <summary>Ask GitHub for new releases while a tab is open (<see cref="Updates"/>). Off in tests.</summary>
+    public bool CheckUpdates { get; init; }
 }
 
 /// <summary>The local UI server: 127.0.0.1 only, random port, per-launch token (see <see cref="Security"/>).</summary>
@@ -37,6 +41,9 @@ public sealed class FerahlaServer : IAsyncDisposable
     public string LaunchUrl => $"{BaseUrl}/#token={Token}";
     internal EventHub Hub { get; }
     internal Jobs Jobs { get; }
+    internal Updates? Updates { get; private set; }
+    /// <summary>True when the server stopped because a new exe is in place; the caller starts it.</summary>
+    public bool RestartRequested => Updates?.Installed == true;
 
     private FerahlaServer(WebApplication app, string token, EventHub hub, Jobs jobs)
     {
@@ -58,7 +65,7 @@ public sealed class FerahlaServer : IAsyncDisposable
         });
         var app = builder.Build();
 
-        var token = Security.NewToken();
+        var token = o.Token ?? Security.NewToken();
         var hub = new EventHub();
         var jobs = new Jobs(hub);
         var state = new AppState(new SnapshotStore(o.Home));
@@ -68,7 +75,9 @@ public sealed class FerahlaServer : IAsyncDisposable
         server = new FerahlaServer(app, token, hub, jobs);
         var analysis = new Analysis(o.Home, hub, jobs);
         var chat = new Chat(o.Home, hub, analysis, jobs);
-        var api = new Api(state, jobs, hub, analysis, chat, () => server._stop.Cancel());
+        var updates = new Updates(o.Home, hub, Api.Version);
+        server.Updates = updates;
+        var api = new Api(state, jobs, hub, analysis, chat, updates, o.CheckUpdates, () => server._stop.Cancel());
 
         app.Use((ctx, next) => security.Invoke(ctx, next));
         app.Use(async (ctx, next) =>
@@ -82,6 +91,7 @@ public sealed class FerahlaServer : IAsyncDisposable
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         server._port = new Uri(address).Port;
         if (o.IdleTimeout is { } idle) _ = server.Watch(idle);
+        if (o.CheckUpdates) _ = updates.Loop(() => hub.Subscribers, server._stop.Token);
         return server;
     }
 
@@ -100,6 +110,9 @@ public sealed class FerahlaServer : IAsyncDisposable
     }
 
     public void RequestStop() => _stop.Cancel();
+
+    /// <summary>Deletes the exe an update replaced, once its process is gone.</summary>
+    public static Task CleanupAfterUpdate(string home) => Updates.CleanupAsync(home);
 
     public async Task WaitForShutdownAsync(CancellationToken ct = default)
     {

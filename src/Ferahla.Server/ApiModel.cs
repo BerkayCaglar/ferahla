@@ -16,6 +16,7 @@ public sealed class StateDto
     public int QuarantineItems { get; set; }
     public long QuarantineBytes { get; set; }
     public string? DefaultRoot { get; set; }
+    public UpdateDto? Update { get; set; }
 }
 
 public sealed class DriveDto
@@ -38,6 +39,7 @@ public enum JobKind
     [JsonStringEnumMemberName("restore")] Restore,
     [JsonStringEnumMemberName("delete")] Delete,
     [JsonStringEnumMemberName("analysis")] Analysis,
+    [JsonStringEnumMemberName("update")] Update,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<JobState>))]
@@ -161,6 +163,8 @@ public sealed class NoteRequest { public string FindingId { get; set; } = ""; pu
 [JsonSerializable(typeof(TreeDto))]
 [JsonSerializable(typeof(FilesDto))]
 [JsonSerializable(typeof(OkDto))]
+[JsonSerializable(typeof(UpdateDto))]
+[JsonSerializable(typeof(UpdateSettingsRequest))]
 [JsonSerializable(typeof(ErrorResult))]
 [JsonSerializable(typeof(ScanRequest))]
 [JsonSerializable(typeof(LangRequest))]

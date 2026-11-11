@@ -12,6 +12,7 @@ import * as quarantine from './views/quarantine.js';
 import * as history from './views/history.js';
 import * as analysis from './views/analysis.js';
 import * as apps from './views/apps.js';
+import { updateBar, openAbout, checkOnFocus, checkNow } from './update.js';
 
 const ROUTES = [
   { id: 'overview', icon: 'overview', label: 'navOverview', view: overview },
@@ -24,7 +25,7 @@ const ROUTES = [
   { id: 'analysis', icon: 'robot', label: 'navAnalysis', view: analysis },
 ];
 
-let content, topbar, nav, cleanup = null, renderSeq = 0;
+let content, topbar, updateSlot, nav, cleanup = null, renderSeq = 0;
 
 // ---- theme ----
 
@@ -100,7 +101,8 @@ function sidebar() {
     h('div.brand', brandMark(), h('div', h('div.brand-name', 'Ferahla'), h('div.brand-tag', t('appTag')))),
     nav,
     h('div.sidebar-foot', h('div.drive-mini', { id: 'driveMini' }), themeSeg, langSeg,
-      h('div.version', h('span', 'v' + (store.state?.version || '')),
+      h('div.version', h('span.ver-group', h('button.ver', { title: t('upAbout'), onclick: () => openAbout() }, 'v' + (store.state?.version || '')),
+        h('button.ver-check', { title: t('upCheck'), 'aria-label': t('upCheck'), onclick: e => checkNow(e.currentTarget) }, icon('refresh'))),
         h('button', { text: t('quit'), onclick: quit }))));
 }
 
@@ -108,6 +110,10 @@ async function quit() {
   if (!await confirm(t('quit'), t('quitConfirm'), t('quit'))) return;
   await post('/api/quit').catch(() => {});
   document.body.replaceChildren(h('div.gate', h('div.card', brandMark(), h('h1', 'Ferahla'), h('p', t('quitDone')))));
+}
+
+function renderUpdate() {
+  if (updateSlot) clear(updateSlot).append(updateBar() || '');
 }
 
 function driveLabel(root) {
@@ -128,7 +134,7 @@ function renderTopbar() {
   const job = store.state?.job;
   let jobEl = null;
   if (job?.state === 'running') {
-    const label = job.kind === 'scan' ? t('scanningTitle', job.target || '') + ` · ${size(job.bytes)}` : t('pvChecking');
+    const label = job.kind === 'scan' ? t('scanningTitle', job.target || '') + ` · ${size(job.bytes)}` : job.kind === 'update' ? t('upInstalling', job.target || '') : t('pvChecking');
     jobEl = h('button.job-pill', { onclick: () => job.kind === 'scan' && go('overview') }, h('span.spinner'), label);
   }
 
@@ -220,19 +226,23 @@ async function boot(relang = false) {
   }
   topbar = h('header.topbar');
   content = h('main.content', { id: 'content' });
-  root.replaceChildren(h('div.app', sidebar(), h('div.main', topbar, content)));
-  renderTopbar(); badges();
+  updateSlot = h('div.update-slot');
+  root.replaceChildren(h('div.app', sidebar(), h('div.main', updateSlot, topbar, content)));
+  renderTopbar(); badges(); renderUpdate();
   render();
   if (booted) return;
   booted = true;
   window.addEventListener('hashchange', render);
   stopEvents = startEvents();
+  checkOnFocus();
   let lastScanId = currentScan()?.id, lastRoot = store.root;
   subscribe((what, data) => {
     if (what === 'analysis') { route().view.onEvent?.('analysis', data); return; }
     if (what === 'chat') return; // the chat drawer listens itself
-    if (what === 'offline') toast(t('offline'), 'warn');
-    if (what === 'online') toast(t('reconnected'), 'ok');
+    if (what === 'offline' && !store.restarting) toast(t('offline'), 'warn');
+    if (what === 'online' && !store.restarting) toast(t('reconnected'), 'ok');
+    if (what === 'update' || what === 'state') renderUpdate();
+    if (what === 'update') return;
     renderTopbar(); badges();
     const scanId = currentScan()?.id;
     if (what === 'root' || store.root !== lastRoot || scanId !== lastScanId) {

@@ -112,7 +112,8 @@ ve HTML raporda görünür.
 
 ## Gizlilik
 
-- Telemetri yok, ağ erişimi yok. HTML rapor internetten hiçbir şey yüklemez.
+- Telemetri yok. Tek ağ isteği güncelleme kontrolüdür (pencere açıkken GitHub'daki en son sürüm; kapatılabilir). HTML
+  rapor internetten hiçbir şey yüklemez. Ayrıntılar: [docs/privacy.md](docs/privacy.md).
 - Taramalar ve raporlar bilgisayarında kalır. **Rapor dosya yollarını içerir**: paylaşmadan önce bak.
 
 ## Derleme
