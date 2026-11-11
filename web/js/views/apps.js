@@ -1,5 +1,5 @@
 // Apps & games: what is installed and how big, removed the right way (own uninstaller or the launcher).
-import { h, clear, size, toast, dialog, skeleton, count, meter } from '../ui.js';
+import { h, clear, size, toast, dialog, skeleton, count, meter, tip } from '../ui.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { currentScan } from '../store.js';
@@ -24,7 +24,7 @@ function draw() {
   search.addEventListener('input', () => { q = search.value.trim().toLowerCase(); drawList(); });
   box.append(
     h('div.page-head',
-      h('div', h('div.eyebrow', t('navApps')), h('h1.page-title', t('apTitle')), h('p.page-lede', t('apLede'))),
+      h('div', h('div.eyebrow', t('navApps')), h('h1.page-title', t('apTitle'), tip(t('apLede')))),
       h('button.btn', { onclick: () => post('/api/apps/settings') }, icon('external'), t('apSettings'))),
     h('div.toolbar',
       h('div.tabs', { role: 'tablist' },

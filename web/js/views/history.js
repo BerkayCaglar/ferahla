@@ -1,4 +1,4 @@
-import { h, clear, size, signed, count, date, shortDate, confirm, toast, meter, skeleton } from '../ui.js';
+import { h, clear, size, signed, count, date, shortDate, confirm, toast, meter, skeleton, tip } from '../ui.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, scansOf, cached, dropCache, refreshState } from '../store.js';
@@ -20,7 +20,7 @@ async function draw() {
   const diff = scans.length > 1 ? await cached('/api/diff?scan=' + scans[0].id + (fromId ? '&from=' + encodeURIComponent(fromId) : '')) : null;
   if (!ctxRef.isCurrent()) return;
   clear(box).append(
-    h('div.page-head', h('div', h('div.eyebrow', store.root), h('h1.page-title', t('hiTitle')), h('p.page-lede', t('hiLede')))),
+    h('div.page-head', h('div', h('div.eyebrow', store.root), h('h1.page-title', t('hiTitle'), tip(t('hiLede'))))),
     h('div.card.card-pad', h('div.card-head', icon('trend'), h('h2', t('hiFree'))),
       scans.length > 1 ? chart([...scans].reverse()) : h('p.muted', t('hiOnlyOne'))),
     h('div.grid.grid-2', { class: 'mt' },

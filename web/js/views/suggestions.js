@@ -1,4 +1,4 @@
-import { h, clear, size, signed, riskName, catName, date, copyText, toast, dialog, skeleton, setWidth, menu } from '../ui.js';
+import { h, clear, size, signed, riskName, catName, date, copyText, toast, dialog, skeleton, setWidth, menu, tip, badge } from '../ui.js';
 import { icon, catIcon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, cached, currentScan, runJob, jobRunning, dropCache, refreshState } from '../store.js';
@@ -49,7 +49,7 @@ function draw() {
   }));
   box.append(
     h('div.page-head',
-      h('div', h('div.eyebrow', currentScan().root), h('h1.page-title', t('sgTitle')), h('p.page-lede', t('sgLede'))),
+      h('div', h('div.eyebrow', currentScan().root), h('h1.page-title', t('sgTitle'), tip(t('sgLede')))),
       h('div.row-flex',
         h('button.btn', { onclick: () => preset(f => f.risk === 'safe') }, icon('check'), t('presetSafe')),
         data.previousScanId ? h('button.btn', { onclick: () => preset(f => f.isNew || (f.growthBytes || 0) >= 100 * 1048576) }, icon('trend'), t('presetNew')) : null,
@@ -98,14 +98,13 @@ function drawList() {
     all.addEventListener('change', () => { for (const f of sel) all.checked ? store.selection.add(f.id) : store.selection.delete(f.id); drawList(); updateBar(); });
     listEl.appendChild(h('section.group',
       h('div.group-head', all,
-        h('div.g-title', h('h2', riskName(g)), h('p', t('risk' + g[0].toUpperCase() + g.slice(1) + 'Text'))),
+        h('div.g-title', h('h2', riskName(g), tip(t('risk' + g[0].toUpperCase() + g.slice(1) + 'Text')))),
         h('span.chip.' + g, t('nItems', list.length)), h('span.g-sum', size(total))),
       h('div.list', list.map(row))));
   }
   if (data.notSuggested?.length) {
     listEl.appendChild(h('section.not-suggested.card.card-pad',
-      h('div.card-head', icon('shield'), h('h2', t('notSuggested'))),
-      h('p.muted', t('notSuggestedSub')),
+      h('div.card-head', icon('shield'), h('h2', t('notSuggested')), tip(t('notSuggestedSub'))),
       h('ul.paths', data.notSuggested.slice(0, 12).map(n => h('li', h('span', `${n.path} — ${n.reason}`), h('span', size(n.bytes)))))));
   }
 }
@@ -123,12 +122,13 @@ function row(f) {
   const top = f.items.filter(i => !i.nestedIn);
   const path = top.length === 0 ? '' : top.length === 1 ? top[0].path : `${top[0].path}  (+${top.length - 1})`;
   const tags = [];
-  if (f.isNew && data.previousScanId) tags.push(h('span.chip.accent', t('isNew')));
-  if (f.action !== 'quarantine') tags.push(h('span.chip.neutral', t('act_' + f.action)));
+  if (f.isNew && data.previousScanId) tags.push(badge('sparkle', t('isNew'), 'accent'));
+  if (f.action !== 'quarantine') tags.push(badge(ACT_ICON[f.action] || 'info', t('act_' + f.action) + ' · ' + t('actHow_' + f.action)));
   const grew = !f.isNew && f.growthBytes && Math.abs(f.growthBytes) >= 100 * 1048576 ? t('grew', signed(f.growthBytes)) : '';
 
   const details = h('details',
     h('summary', icon('chevron'), t('details')),
+    f.evidence?.length ? h('div.i-ev', f.evidence.map(e => h('span.ev', icon('check'), e))) : null,
     h('dl.kv',
       f.whatBreaks ? [h('dt', t('whatBreaks')), h('dd', f.whatBreaks)] : null,
       f.howToRestore ? [h('dt', t('howRestore')), h('dd', f.howToRestore)] : null,
@@ -139,8 +139,7 @@ function row(f) {
     h('div.row-flex.actions-row',
       f.items.length && f.action !== 'info' ? h('button.btn.btn-sm', { onclick: e => verify(f, e.currentTarget) }, icon('checkCircle'), t('verify')) : null,
       (SYSTEM[f.ruleId] || []).map(([id, label]) => h('button.btn.btn-sm', { onclick: () => runSystem(id) }, icon('shield'), t(label))),
-      f.action === 'uninstall' || f.action === 'launcher' ? h('button.btn.btn-sm', { onclick: () => ctxRef.go('apps', { tab: f.category === 'game' ? 'games' : 'apps' }) }, icon('apps'), t('openApps')) : null,
-      h('button.btn.btn-sm.btn-ghost', { onclick: () => editNote(f) }, icon('note'), f.note ? t('editNote') : t('addNote'))),
+      f.action === 'uninstall' || f.action === 'launcher' ? h('button.btn.btn-sm', { onclick: () => ctxRef.go('apps', { tab: f.category === 'game' ? 'games' : 'apps' }) }, icon('apps'), t('openApps')) : null),
     h('div.verify-out'),
     top.length > 1 ? h('ul.paths', top.slice(0, 30).map(i => h('li', h('span', i.path), h('span', size(i.bytes))))) : null);
 
@@ -148,14 +147,23 @@ function row(f) {
     h('div.i-main',
       h('div.i-title', catIcon(f.category), h('span', f.title), tags),
       path ? h('div.i-path', path) : null,
-      f.reason ? h('div.i-reason', f.reason) : null,
-      f.note ? h('div.ai-note', h('div.ai-head', icon(f.noteSource === 'claude' ? 'robot' : 'note'), h('b', f.noteSource === 'claude' ? t('claudeSays') : t('yourNote')), verdictChip(f.noteVerdict)), h('p', f.note)) : null,
-      f.evidence?.length ? h('div.i-ev', f.evidence.slice(0, 4).map(e => h('span.ev', icon('check'), e))) : null,
+      f.reason ? clampable(h('div.i-reason.clamp', f.reason)) : null,
+      f.note ? h('div.ai-note', h('div.ai-head', tip(f.noteSource === 'claude' ? t('claudeSays') : t('yourNote'), f.noteSource === 'claude' ? 'robot' : 'note'), verdictChip(f.noteVerdict)), clampable(h('p.clamp', f.note))) : null,
       h('div.i-more', details)),
     h('div.i-size', size(f.bytes), grew ? h('small', grew) : f.action === 'info' ? h('small', t('act_info')) : null,
       h('div.row-icons',
         h('button.icon-btn.ask', { title: t('chAskClaude'), 'aria-label': t('chAskClaude'), onclick: () => openChat(f, ctxRef.go) }, icon('robot')),
+        h('button.icon-btn', { title: f.note ? t('editNote') : t('addNote'), 'aria-label': f.note ? t('editNote') : t('addNote'), onclick: () => editNote(f) }, icon('note')),
         top.length ? revealButton(top) : null)));
+  return el;
+}
+
+const ACT_ICON = { command: 'terminal', uninstall: 'apps', launcher: 'game', info: 'info' };
+
+/** Long text shows two lines; a click opens the rest (and closes it again). */
+function clampable(el) {
+  el.addEventListener('click', () => el.classList.toggle('open'));
+  requestAnimationFrame(() => { if (el.scrollHeight <= el.clientHeight + 2) el.classList.add('fits'); });
   return el;
 }
 

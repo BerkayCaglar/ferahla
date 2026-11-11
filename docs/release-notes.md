@@ -3,6 +3,8 @@ Ferahla finds out what fills your Windows disk and cleans it up without breaking
 **Download** `ferahla.exe` below (one file, no installer) and run it: it opens in your browser. Check the file against
 `ferahla.exe.sha256` if you like: `Get-FileHash ferahla.exe -Algorithm SHA256`.
 
+The file is not code-signed yet, so Windows SmartScreen may warn on first run: choose **More info → Run anyway**.
+
 ## What's in it
 
 - Fast full-drive scan, saved so the next one can tell what grew
@@ -11,7 +13,10 @@ Ferahla finds out what fills your Windows disk and cleans it up without breaking
 - Undoable quarantine: items move aside instantly on the same drive; put them back, or delete for good from the window
 - Explorer with a treemap, large files, apps and games, history and scan comparison
 - `ferahla verify`: duplicates compared byte by byte, zip archives against their folder by CRC-32
-- Optional second opinion from your own Claude Code installation, written as notes next to the suggestions
+- An overview bar that shows where all the used space goes: safe to clean, needs a look, apps, Windows and your own files
+- Optional second opinion from your own Claude Code installation: notes for every suggestion (or only the quarantined
+  ones before you delete them), and a side panel per suggestion for a quick or deep analysis and your own questions
+- Progress for quarantine, restore and delete; open any suggestion in Windows Explorer
 - Everything also on the command line with `--json`; English and Turkish; light and dark
 
 ## Requirements

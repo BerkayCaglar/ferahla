@@ -1,5 +1,5 @@
 // Claude analysis: status, plan usage, start/stop, and the live run (tool steps, notes, streamed summary).
-import { h, clear, size, date, toast, copyText, pct, meter, skeleton } from '../ui.js';
+import { h, clear, size, date, toast, copyText, pct, meter, skeleton, tip } from '../ui.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, cached, currentScan, jobRunning, pref } from '../store.js';
@@ -37,7 +37,7 @@ function draw() {
   clear(box);
   const c = data.claude;
   box.append(
-    h('div.page-head', h('div', h('div.eyebrow', t('navAnalysis')), h('h1.page-title', t('anTitle')), h('p.page-lede', t('anLede')))),
+    h('div.page-head', h('div', h('div.eyebrow', t('navAnalysis')), h('h1.page-title', t('anTitle'), tip(t('anLede'))))),
     h('div.grid.grid-hero', statusCard(c), usageCard(data.usage)));
   if (c.installed && c.loggedIn) box.appendChild(runCard());
   box.appendChild(h('div.note', { class: 'mt' }, icon('shield'), h('div', t('anPrivacy'))));

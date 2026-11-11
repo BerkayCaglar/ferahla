@@ -120,12 +120,12 @@ workload for the NativeAOT link step. `vswhere.exe` must be on `PATH`:
 ```powershell
 $env:Path += ";${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
 dotnet test --solution Ferahla.slnx
-dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a single ~5 MB file
+dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a single ~27 MB file
 ```
 
 ## Roadmap
 
-1. Polish and the first release (signed binaries, winget)
+1. Signed binaries and a winget package
 
 ## More
 

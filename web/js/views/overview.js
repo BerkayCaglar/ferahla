@@ -1,10 +1,9 @@
-import { h, clear, size, signed, count, meter, riskName, catName, setWidth } from '../ui.js';
+import { h, clear, size, signed, count, meter, riskName, catName, setWidth, tip } from '../ui.js';
 import { icon, brandMark, catIcon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, cached, currentScan, selectRoot } from '../store.js';
 import { post } from '../api.js';
 
-const RISKS = ['safe', 'regenerable', 'review'];
 let box, ctxRef, elapsedTimer;
 
 export async function render(container, ctx) {
@@ -49,7 +48,8 @@ async function draw() {
       h('h1.page-title', t(scan.root.length <= 3 ? 'ovTitle' : 'ovTitleFolder', driveName(scan.root))))),
     h('div.grid.grid-hero',
       hero(findings, suggest, actionable.length),
-      h('div.stack', tiles(findings), kinds(actionable))),
+      kinds(actionable)),
+    composition(findings, scan),
     h('div.grid.grid-2', { class: 'mt' }, whereCard(tree), growthCard(diff)),
     winsCard(actionable) || '');
   const n = notes(findings, scan);
@@ -93,13 +93,44 @@ function hero(f, suggest, n) {
         h('button.btn', { onclick: () => ctxRef.go('explorer') }, icon('folder'), t('openExplorer')))));
 }
 
-function tiles(f) {
-  return h('div.tiles', RISKS.map(r => {
-    const list = f.findings.filter(x => x.risk === r && x.action !== 'info');
-    const b = list.reduce((a, x) => a + x.bytes, 0);
-    return h('button.tile', { onclick: () => ctxRef.go('suggestions', { risk: r }) },
-      h('span.chip.' + r, riskName(r)), h('b.num', size(b)), h('span.t-sub', t('nItems', list.length)));
-  }));
+/**
+ * Where all of the used space goes, not only the suggested part: what Ferahla suggests (by risk and by how it is
+ * removed), and the rest, which is the user's own files, apps and Windows. Each part opens where it is handled.
+ */
+function composition(f, scan) {
+  const drive = scan.root.length <= 3;
+  // For a folder scan there is no drive free space to show; the base is what the scan found.
+  const base = drive ? Math.max(0, (f.totalBytes || 0) - (f.freeBytes || 0)) : scan.scannedBytes || 0;
+  const sum = pred => f.findings.filter(pred).reduce((a, x) => a + x.bytes, 0);
+  const moves = x => x.action === 'quarantine';
+  const parts = [
+    { k: 'safe', ic: 'check', label: riskName('safe'), bytes: sum(x => moves(x) && x.risk === 'safe'), go: ['suggestions', { risk: 'safe' }] },
+    { k: 'regen', ic: 'undo', label: riskName('regenerable'), bytes: sum(x => moves(x) && x.risk === 'regenerable'), go: ['suggestions', { risk: 'regenerable' }] },
+    { k: 'review', ic: 'search', label: riskName('review'), bytes: sum(x => moves(x) && (x.risk === 'review' || x.risk === 'personal')), go: ['suggestions', { risk: 'review' }] },
+    { k: 'apps', ic: 'apps', label: t('coApps'), bytes: sum(x => x.action === 'uninstall' || x.action === 'launcher'), go: ['apps'] },
+    { k: 'system', ic: 'terminal', label: t('coSystem'), bytes: sum(x => x.action === 'command'), go: ['suggestions'] },
+    { k: 'info', ic: 'info', label: t('coInfo'), bytes: sum(x => x.action === 'info' && x.ruleId !== 'system.unaccounted'), go: ['suggestions'] },
+  ].filter(p => p.bytes > 0);
+  // Findings can overlap a little (a folder in two rules); never claim more than is used.
+  const found = parts.reduce((a, p) => a + p.bytes, 0);
+  if (found > base && found > 0) for (const p of parts) p.bytes = p.bytes * base / found;
+  parts.push({ k: 'rest', ic: 'lock', label: t('coRest'), tip: t('coRestTip'), bytes: Math.max(0, base - Math.min(found, base)), go: ['explorer'] });
+  if (drive) parts.push({ k: 'free', ic: 'drive', label: t('free'), bytes: f.freeBytes || 0 });
+  const all = parts.reduce((a, p) => a + p.bytes, 0) || 1;
+
+  const bar = h('div.stackbar', { role: 'img', 'aria-label': t('coTitle') });
+  let at = 0;
+  for (const p of parts) {
+    // Tooltips of the right half open to the left, so they stay on the page.
+    const seg = h('button.k-' + p.k + ((at += p.bytes / all) - p.bytes / all / 2 > 0.5 ? '.tip-end' : ''), { dataset: { tip: `${p.label} · ${size(p.bytes)}` }, 'aria-label': `${p.label} ${size(p.bytes)}`, onclick: () => p.go && ctxRef.go(...p.go) });
+    seg.style.flex = String(p.bytes / all);
+    bar.appendChild(seg);
+  }
+  return h('div.card.card-pad.compo',
+    h('div.card-head', icon('layers'), h('h2', t('coTitle')), tip(t('coTip'))),
+    bar,
+    h('div.compo-legend', parts.map(p => h(p.go ? 'button.compo-item' : 'div.compo-item', { onclick: p.go ? () => ctxRef.go(...p.go) : undefined, dataset: p.tip ? { tip: p.tip } : undefined },
+      h('span.ci-ico.k-' + p.k, icon(p.ic)), h('span.ci-name', p.label), h('span.ci-val', size(p.bytes))))));
 }
 
 function kinds(list) {

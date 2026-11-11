@@ -1,4 +1,4 @@
-import { h, clear, size, signed, count, pct, meter, shortDate, toast, skeleton, riskName } from '../ui.js';
+import { h, clear, size, signed, count, pct, meter, shortDate, toast, skeleton, riskName, tip } from '../ui.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { cached, currentScan } from '../store.js';
@@ -27,7 +27,7 @@ const open = p => ctxRef.go('explorer', { path: p });
 function draw(findings) {
   clear(box);
   box.append(
-    h('div.page-head', h('div', h('div.eyebrow', t('exTitle')), h('h1.page-title', tree.path.length <= 3 ? tree.path.slice(0, 2) : tree.path.slice(tree.path.lastIndexOf('\\') + 1)), h('p.page-lede', t('exLede')))),
+    h('div.page-head', h('div', h('div.eyebrow', t('exTitle')), h('h1.page-title', tree.path.length <= 3 ? tree.path.slice(0, 2) : tree.path.slice(tree.path.lastIndexOf('\\') + 1), tip(t('exLede'))))),
     crumbs(),
     h('div.explorer',
       h('div.stack', treemap(), table()),

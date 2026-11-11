@@ -1,4 +1,4 @@
-import { h, clear, size, count, date, ago, toast, dialog, skeleton } from '../ui.js';
+import { h, clear, size, count, date, ago, toast, dialog, skeleton, tip } from '../ui.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { store, runJob, jobRunning, dropCache, refreshState } from '../store.js';
@@ -30,10 +30,12 @@ function draw() {
   const items = batches.reduce((a, b) => a + b.items, 0);
   const bytes = batches.reduce((a, b) => a + b.bytes, 0);
   box.append(
-    h('div.page-head', h('div', h('div.eyebrow', t('navQuarantine')), h('h1.page-title', t('qTitle')), h('p.page-lede', t('qLede'))),
-      picked.size ? h('div.row-flex',
-        h('button.btn', { onclick: () => act('restore', selection()) }, icon('undo'), t('restoreSel')),
-        h('button.btn.btn-danger', { onclick: () => act('delete', selection()) }, icon('trash'), t('deleteSel'))) : null));
+    h('div.page-head', h('div', h('div.eyebrow', t('navQuarantine')), h('h1.page-title', t('qTitle'), tip(t('qLede')))),
+      h('div.row-flex',
+        batches.length ? h('button.btn', { dataset: { tip: t('qAskClaudeText') }, class: 'tip-end', onclick: () => ctxRef.go('analysis', { scope: 'quarantine' }) }, icon('robot'), t('qAskClaude')) : null,
+        picked.size ? [
+          h('button.btn', { onclick: () => act('restore', selection()) }, icon('undo'), t('restoreSel')),
+          h('button.btn.btn-danger', { onclick: () => act('delete', selection()) }, icon('trash'), t('deleteSel'))] : null)));
   if (!batches.length) {
     box.appendChild(h('div.card', h('div.empty', icon('box'), h('h3', t('qEmpty')), h('p', t('qEmptyText')))));
     box.appendChild(h('div.note', { class: 'mt' }, icon('info'), h('div', t('qWhere'))));
@@ -42,9 +44,6 @@ function draw() {
   box.append(
     h('div.qstats',
       tile(size(bytes), t('qHeld')), tile(count(items), t('qItems')), tile(count(batches.length), t('qBatches'))),
-    h('div.card.card-pad.ask-claude',
-      h('div.row-flex', icon('robot'), h('div', h('b', t('qAskClaude')), h('p.muted', t('qAskClaudeText'))), h('span.sp'),
-        h('button.btn', { onclick: () => ctxRef.go('analysis', { scope: 'quarantine' }) }, icon('sparkle'), t('qAskClaude')))),
     ...batches.map(batchCard),
     h('div.note', { class: 'mt' }, icon('info'), h('div', t('qWhere'))));
   for (const n of box.querySelectorAll('.mt')) n.style.marginTop = '18px';

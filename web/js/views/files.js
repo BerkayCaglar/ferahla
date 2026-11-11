@@ -1,4 +1,4 @@
-import { h, clear, size, shortDate, toast, skeleton, count } from '../ui.js';
+import { h, clear, size, shortDate, toast, skeleton, count, tip } from '../ui.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { cached, currentScan } from '../store.js';
@@ -27,7 +27,7 @@ function draw() {
   const search = h('input', { type: 'search', placeholder: t('searchPh'), value: q, 'aria-label': t('search') });
   search.addEventListener('input', () => { q = search.value.trim().toLowerCase(); drawTable(); });
   box.append(
-    h('div.page-head', h('div', h('div.eyebrow', currentScan().root), h('h1.page-title', t('flTitle')), h('p.page-lede', t('flLede')))),
+    h('div.page-head', h('div', h('div.eyebrow', currentScan().root), h('h1.page-title', t('flTitle'), tip(t('flLede'))))),
     h('div.toolbar',
       h('div.tabs', { role: 'tablist' }, KINDS.map(([k, label]) => h('button.tab', {
         role: 'tab', class: kind === k ? 'on' : '', 'aria-selected': String(kind === k),

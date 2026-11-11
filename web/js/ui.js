@@ -29,6 +29,16 @@ function append(el, kids) {
   }
 }
 
+/** An (i) icon whose text shows on hover and focus: a CSS tooltip from data-tip, instead of a line of text. */
+export function tip(text, ic = 'info') {
+  return h('span.tip', { tabindex: 0, role: 'img', 'aria-label': text, dataset: { tip: text } }, icon(ic));
+}
+
+/** A small icon badge with a tooltip, e.g. what kind of action a suggestion needs. */
+export function badge(ic, text, cls = '') {
+  return h('span.badge' + (cls ? '.' + cls : ''), { tabindex: 0, role: 'img', 'aria-label': text, dataset: { tip: text } }, icon(ic));
+}
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const clear = el => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
 

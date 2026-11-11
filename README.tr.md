@@ -123,12 +123,12 @@ Windows 10 1809+ ya da 11 (x64), .NET 10 SDK ve NativeAOT bağlama adımı için
 ```powershell
 $env:Path += ";${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
 dotnet test --solution Ferahla.slnx
-dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~5 MB tek dosya
+dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~27 MB tek dosya
 ```
 
 ## Yol haritası
 
-1. Cila ve ilk sürüm (imzalı dosyalar, winget)
+1. İmzalı dosyalar ve winget paketi
 
 ## Daha fazlası
 
