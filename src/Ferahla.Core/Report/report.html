@@ -183,7 +183,7 @@ const L = tr ? {
   all: 'tümünü seç', items: n => `${n} öğe`, more: n => `… ${n} tane daha`, details: 'Ayrıntılar', breaks: 'Ne bozulur', restore: 'Geri getirme',
   isNew: 'yeni', since: g => `son taramadan beri ${g}`,
   act: { command: 'Komutla', uninstall: 'Kaldır', launcher: 'Uygulamasından kaldır', info: 'Bilgi' },
-  count: n => `${n} kalem seçildi`, copy: 'Seçilenleri kopyala', copied: 'Kopyalandı ✓', nothing: 'Hiçbir şey seçilmedi', plan: 'Plan dosyasını indir', claude: 'Claude\u2019un değerlendirmesi', mine: 'Notun', verdict: { remove: 'kaldır', check: 'önce bak', keep: 'tut' }, planHint: 'Sonra önce deneme yap, ardından taşı (geri alınabilir):',
+  count: n => `${n} kalem seçildi`, copy: 'Seçilenleri kopyala', copied: 'Kopyalandı ✓', nothing: 'Hiçbir şey seçilmedi', plan: 'Plan dosyasını indir', claude: 'Claude\u2019un değerlendirmesi', codex: 'Codex\u2019in değerlendirmesi', mine: 'Notun', verdict: { remove: 'kaldır', check: 'önce bak', keep: 'tut' }, planHint: 'Sonra önce deneme yap, ardından taşı (geri alınabilir):',
   notSuggested: 'Listede olmayanlar', generated: (t, v) => `${t} tarihinde Ferahla ${v} ile oluşturuldu. Boyutlar taramadaki gerçek bayt toplamları.`,
   copyHead: s => `SEÇİLENLER (${s}):`,
 } : {
@@ -197,7 +197,7 @@ const L = tr ? {
   all: 'select all', items: n => `${n} items`, more: n => `… ${n} more`, details: 'Details', breaks: 'What breaks', restore: 'How to restore',
   isNew: 'new', since: g => `${g} since last scan`,
   act: { command: 'By command', uninstall: 'Uninstall', launcher: 'Remove from its app', info: 'Info' },
-  count: n => `${n} selected`, copy: 'Copy selection', copied: 'Copied ✓', nothing: 'Nothing selected', plan: 'Download plan file', claude: 'Claude\u2019s assessment', mine: 'Your note', verdict: { remove: 'remove', check: 'check first', keep: 'keep' }, planHint: 'Then do a dry run first, then move (undoable):',
+  count: n => `${n} selected`, copy: 'Copy selection', copied: 'Copied ✓', nothing: 'Nothing selected', plan: 'Download plan file', claude: 'Claude\u2019s assessment', codex: 'Codex\u2019s assessment', mine: 'Your note', verdict: { remove: 'remove', check: 'check first', keep: 'keep' }, planHint: 'Then do a dry run first, then move (undoable):',
   notSuggested: 'Not in the list', generated: (t, v) => `Generated ${t} by Ferahla ${v}. Sizes are real byte totals from the scan.`,
   copyHead: s => `SELECTED (${s}):`,
 };
@@ -255,7 +255,7 @@ order.forEach(risk => {
       ${first ? `<span class="r-path">${esc(first.path)}${extra}</span>` : ''}
       ${f.reason ? `<span class="r-note">${esc(f.reason)}</span>` : ''}
       ${ev ? `<span class="r-ev">${ev}</span>` : ''}
-      ${f.note ? `<span class="r-ai"><strong>${f.noteSource === 'claude' ? L.claude : L.mine}${f.noteVerdict && f.noteVerdict !== 'none' ? ' · ' + esc(L.verdict[f.noteVerdict] || f.noteVerdict) : ''}:</strong> ${esc(f.note)}</span>` : ''}
+      ${f.note ? `<span class="r-ai"><strong>${f.noteSource === 'claude' ? L.claude : f.noteSource === 'codex' ? L.codex : L.mine}${f.noteVerdict && f.noteVerdict !== 'none' ? ' · ' + esc(L.verdict[f.noteVerdict] || f.noteVerdict) : ''}:</strong> ${esc(f.note)}</span>` : ''}
       ${f.command ? `<code class="cmd">${esc(f.command)}</code>` : ''}
       ${det ? `<details><summary>${L.details}</summary>${det}</details>` : ''}</label>
       <span class="r-size mono">${esc(size(f.bytes))}${growth}</span>`;

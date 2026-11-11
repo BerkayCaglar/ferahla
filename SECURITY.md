@@ -47,11 +47,16 @@ same release as the exe; signing (see `docs/code-signing.md`) will add a signatu
 **System commands** come from a fixed allowlist with fixed arguments (`SystemActions.cs`); each asks for elevation for
 that one step. `DISM /ResetBase` is never run. Ferahla itself never runs elevated.
 
-**Claude analysis** (optional) runs your own Claude Code with no built-in tools, only Ferahla's read-only MCP tools plus
-a note tool, no settings, hooks or CLAUDE.md files, and every permission prompt refused. Ferahla checks the tool list
-when the run starts and stops it if anything else is enabled; "Continue in terminal" resumes the session with the same
-restrictions, because its history contains scan text. It never reads Claude's credentials. Scan data given to
-Claude is treated as data in the prompt, not as instructions.
+**AI analysis** (optional) runs your own Claude Code or Codex with no built-in tools, only Ferahla's read-only MCP
+tools plus a note tool, and no user settings, rules, skills, plugins, hooks, CLAUDE.md or AGENTS.md files.
+Claude Code: `--tools ""`, `--strict-mcp-config`, no setting sources, every permission prompt refused; Ferahla checks
+the tool list when the run starts and stops it if anything else is enabled. Codex: `--ignore-user-config`,
+`--ignore-rules`, skills instructions off, a read-only sandbox, approvals never asked, web search off and every
+feature that adds a tool disabled (shell, apps, plugins, browser, computer use, images, sub-agents); Codex lists no tools
+up front, so Ferahla checks every event and stops the run at the first command, file change, web search or tool call
+outside Ferahla. "Continue in terminal" exists only for Claude, because Codex' interactive mode can't leave the user
+config out. Ferahla never reads either agent's credentials and removes API keys from the environment of its runs.
+Scan data given to the AI is treated as data in the prompt, not as instructions.
 
 ## Out of scope
 

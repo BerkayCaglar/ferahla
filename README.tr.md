@@ -42,7 +42,7 @@ Kurallar [`rules/`](rules) altında JSON olarak, İngilizce ve Türkçe metinler
 ## Kullanım
 
 `ferahla` komutunu çalıştır (ya da `ferahla.exe`'ye çift tıkla), tarayıcında açılır: genel bakış, işaretleyeceğin
-öneriler, treemap'li klasör gezgini, büyük dosyalar, uygulamalar ve oyunlar, karantina, geçmiş ve isteğe bağlı Claude analizi. Açık ve koyu tema, Türkçe ve İngilizce.
+öneriler, treemap'li klasör gezgini, büyük dosyalar, uygulamalar ve oyunlar, karantina, geçmiş ve isteğe bağlı yapay zekâ analizi (Claude Code ya da Codex). Açık ve koyu tema, Türkçe ve İngilizce.
 
 | Öneriler | Gezgin |
 |---|---|
@@ -95,19 +95,23 @@ sildiğinde açılır. O zamana kadar `ferahla restore` her şeyi geri koyar.
 Birkaç milyon dosyalı bir sürücünün tam taraması ilk seferde yaklaşık bir dakika, sonrasında bir dakikadan çok daha kısa
 sürer. Taramalar `%LOCALAPPDATA%\Ferahla\scans` altında saklanır.
 
-### Claude analizi (isteğe bağlı)
+### Yapay zekâ analizi: Claude Code ya da Codex (isteğe bağlı)
 
-[Claude Code](https://claude.com/claude-code) kuruluysa ve oturum açıksa, **Claude analizi** sayfası ondan ikinci bir
-görüş ister. Claude taramayı Ferahla'nın kendi salt okunur araçlarıyla okur (`ferahla.exe` içindeki bir MCP sunucusu).
-Önemli her öneriye kısa bir not yazar (kaldır, önce bak, tut) ve sonunda bir özet çıkarır. Notlar önerilerin yanında
-ve HTML raporda görünür.
+[Claude Code](https://claude.com/claude-code) ya da [Codex](https://developers.openai.com/codex) kuruluysa ve oturum
+açıksa, **Yapay zekâ analizi** sayfası ondan ikinci görüş ister: taramayı Ferahla'nın kendi salt okunur araçlarıyla
+okur (`ferahla.exe` içindeki bir MCP sunucusu) ve önemli her öneriye kısa bir not yazar (kaldır, önce kontrol et,
+tut), sonunda da bir özet. Notlar önerilerin yanında ve HTML raporda, yazan yapay zekânın adıyla görünür. Her önerinin
+ayrıca hızlı ya da derin bakış ve kendi soruların için bir **Yapay zekâya sor** paneli var. Yapay zekâyı (ve modelini)
+Analiz sayfasında ya da panelde seçersin.
 
-- Kendi Claude Code kurulumunu ve planını kullanır. Ferahla Claude kimlik bilgilerini asla okumaz.
-- Claude'a başka hiçbir araç verilmez: dosya, kabuk ya da web yok. Hiçbir şeyi taşıyamaz ya da silemez; böyle bir
+- Kendi kurulumunu ve planını kullanır (Claude ya da Codex için ChatGPT). Ferahla kimlik bilgilerini asla okumaz.
+- Yapay zekâya başka hiçbir araç verilmez: dosya, kabuk ya da web yok. Hiçbir şeyi taşıyamaz ya da silemez; böyle bir
   araç yok.
-- Nötr bir klasörde çalışır; ayarların, hook'ların ve CLAUDE.md dosyaların dışarıda bırakılır, her izin sorusu
-  reddedilir. Ferahla başlangıçta araç listesini kontrol eder; başka bir şey açıksa çalıştırmayı durdurur.
-- Plan kullanımın (5 saatlik ve haftalık) başlamadan önce gösterilir. Limitlerine en hafif gelen Haiku'dur.
+- Nötr bir klasörde çalışır; ayarların, kuralların, skill'lerin, eklentilerin, hook'ların ve CLAUDE.md / AGENTS.md
+  dosyaların dışarıda bırakılır, ona hiçbir şey onaylanmaz ve Ferahla'nın kendi araçları dışında bir şey görünürse
+  çalışma hemen durdurulur.
+- Claude: plan kullanımın (5 saatlik ve haftalık) başlamadan önce gösterilir; limitlerine en hafif gelen Haiku'dur.
+  Codex plan kullanımını paylaşmaz; her çalıştırma kullandığı token'ı gösterir.
 - Ferahla onsuz da tam çalışır.
 
 ## Gizlilik
@@ -134,7 +138,7 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, ~27 MB
 ## Daha fazlası
 
 - [SECURITY.md](SECURITY.md): dosyaların ve yerel pencere nasıl korunuyor; güvenlik açığı bildirme
-- [docs/privacy.md](docs/privacy.md): Ferahla neyi saklar, analiz kullanırsan Claude neyi görür
+- [docs/privacy.md](docs/privacy.md): Ferahla neyi saklar, analiz kullanırsan yapay zekâ neyi görür
 - [CONTRIBUTING.md](CONTRIBUTING.md) ve [docs/rules.md](docs/rules.md): kural ekleme, derleme, test
 - [docs/architecture.md](docs/architecture.md), [docs/spikes.md](docs/spikes.md): nasıl yapıldı ve neden
 

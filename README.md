@@ -42,7 +42,7 @@ Rules live in [`rules/`](rules) as JSON, with English and Turkish texts.
 ## Usage
 
 Run `ferahla` (or double-click `ferahla.exe`) and it opens in your browser: overview, suggestions to tick, a folder
-explorer with a treemap, large files, apps and games, quarantine, history and an optional Claude analysis. Light and dark, English and Turkish.
+explorer with a treemap, large files, apps and games, quarantine, history and an optional AI analysis (Claude Code or Codex). Light and dark, English and Turkish.
 
 | Suggestions | Explorer |
 |---|---|
@@ -93,18 +93,21 @@ space the moment you delete them for good. Until then `ferahla restore` puts eve
 A full scan of a drive with a few million files takes about a minute the first time and well under a minute after
 that. Scans are saved under `%LOCALAPPDATA%\Ferahla\scans`.
 
-### Claude analysis (optional)
+### AI analysis: Claude Code or Codex (optional)
 
-If you have [Claude Code](https://claude.com/claude-code) installed and logged in, the **Claude analysis** page asks
-it for a second opinion: Claude reads the scan through Ferahla's own read-only tools (an MCP server inside
-`ferahla.exe`) and writes a short note on each suggestion that matters (remove, check first, keep), plus a summary.
-The notes show up next to the suggestions and in the HTML report.
+If you have [Claude Code](https://claude.com/claude-code) or [Codex](https://developers.openai.com/codex) installed and
+logged in, the **AI analysis** page asks it for a second opinion: it reads the scan through Ferahla's own read-only
+tools (an MCP server inside `ferahla.exe`) and writes a short note on each suggestion that matters (remove, check
+first, keep), plus a summary. The notes show up next to the suggestions and in the HTML report, signed by the AI that
+wrote them. Each suggestion also has an **Ask AI** panel for a quick or deep look and your own questions. Pick the AI
+(and its model) on the Analysis page or in the panel.
 
-- It uses your own Claude Code installation and plan. Ferahla never reads your Claude credentials.
-- Claude gets no other tools: no files, no shell, no web. It can't move or delete anything; there is no such tool.
-- It runs in a neutral folder with your settings, hooks and CLAUDE.md files left out, and every permission prompt
-  refused. Ferahla checks the tool list at start and stops the run if anything else is enabled.
-- Your plan usage (5-hour and weekly) is shown before you start. Haiku is the lightest on your limits.
+- It uses your own installation and plan (Claude, or ChatGPT for Codex). Ferahla never reads your credentials.
+- The AI gets no other tools: no files, no shell, no web. It can't move or delete anything; there is no such tool.
+- It runs in a neutral folder with your settings, rules, skills, plugins, hooks and CLAUDE.md / AGENTS.md files left
+  out, nothing is ever approved for it, and Ferahla stops the run as soon as anything but its own tools shows up.
+- Claude: your plan usage (5-hour and weekly) is shown before you start; Haiku is the lightest on your limits.
+  Codex doesn't share plan usage, so each run shows the tokens it used.
 - Ferahla works fully without it.
 
 ## Privacy
@@ -131,7 +134,7 @@ dotnet publish src/Ferahla -c Release -o publish   # publish\ferahla.exe, a sing
 ## More
 
 - [SECURITY.md](SECURITY.md): how your files and the local window are protected; reporting a vulnerability
-- [docs/privacy.md](docs/privacy.md): what Ferahla stores, and what Claude sees if you use the analysis
+- [docs/privacy.md](docs/privacy.md): what Ferahla stores, and what the AI sees if you use the analysis
 - [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/rules.md](docs/rules.md): adding rules, building, testing
 - [docs/architecture.md](docs/architecture.md), [docs/spikes.md](docs/spikes.md): how it is built and why
 

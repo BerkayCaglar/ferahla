@@ -226,3 +226,40 @@ Setup: a folder with 5001 files. One PowerShell process holds a file inside it w
 - When RM finds no process: "the folder is open in another program; probably a terminal or an Explorer window". Detecting cwd needs a handle scan via `NtQuerySystemInformation`; not in v1.
 - Error codes: `0x20` → "in use", `0x05` → "a file inside is in use, or access denied". Either way the item is skipped and reported, and the operation goes on.
 - **P/Invoke trap:** `RM_UNIQUE_PROCESS.ProcessStartTime` is a `FILETIME` (two `DWORD`s, 4-byte aligned). Writing it as a C# `long` shifted the struct by 4 bytes; app names came back missing their first two characters. Two `uint`s fixed it. `Ferahla.Windows` gets a unit test for struct sizes (`sizeof(RM_PROCESS_INFO) == 668`).
+
+## 13. Codex CLI (`codex exec --json`) over the same MCP server — ✅
+
+Verified with codex-cli 0.160 (ChatGPT login), against invented sample data, cheapest listed model, a handful of runs.
+
+**Command** (message on stdin):
+```
+codex exec [resume <thread-id>] --json --ignore-user-config --ignore-rules --skip-git-repo-check
+  --sandbox read-only            (exec only; resume takes -c sandbox_mode='read-only')
+  -c approval_policy='never' -c web_search='disabled' -c project_doc_max_bytes=0
+  -c skills.include_instructions=false -c skills.bundled.enabled=false -c features.memories=false
+  --disable shell_tool --disable unified_exec --disable apps --disable plugins --disable browser_use … (only names
+            that `codex features list` reports; an unknown name is not passed)
+  -c mcp_servers.ferahla.command='<ferahla.exe>' -c mcp_servers.ferahla.args=['mcp','--scan','<id>','--home','<home>','--agent','codex']
+  -c mcp_servers.ferahla.required=true -c mcp_servers.ferahla.default_tools_approval_mode='approve'
+  -c developer_instructions="<prompt>" [-m <model>] -
+```
+- `codex debug prompt-input` (no tokens spent) shows what the model gets: with the flags above, no skills block, no
+  AGENTS.md, no recommended plugins; the developer instructions are ours. Asked to run `dir C:\`, the model said it
+  only has Ferahla tools.
+- MCP calls run without an approval prompt with `default_tools_approval_mode='approve'` and `approval_policy='never'`.
+- **`code_mode_host` must stay on.** Disabling it removes every MCP tool ("Code Mode is unavailable … fails closed").
+- Events (JSONL): `thread.started {thread_id}`, `turn.started`, `item.started` / `item.completed` with `item.type`
+  `agent_message {text}`, `reasoning`, `mcp_tool_call {server, tool, arguments, result{content[]}, error, status}`,
+  `error` (non-fatal warnings, e.g. unknown model metadata), `turn.completed {usage{input_tokens, output_tokens, …}}`,
+  `turn.failed {error{message}}` and top-level `error {message}`; API errors carry JSON inside `message`.
+- No tool list up front (unlike Claude's init event): `CodexParser.Check` stops the run at the first
+  `command_execution`, `file_change`, `web_search` or non-Ferahla tool call. No `--max-turns`: the runner counts tool calls.
+- `codex exec resume <thread-id>` keeps the conversation (a follow-up recalled the earlier verdict); `-c` overrides,
+  including the MCP server, are given again on every run.
+- `codex login status` prints to **stderr** ("Logged in using ChatGPT" / "… an API key" / "Not logged in").
+  `codex debug models` lists the picker's models (`visibility: "list"`).
+- npm installs `codex.cmd` (a node shim); the native `codex.exe` sits under
+  `node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\`. Ferahla runs
+  that exe directly, so arguments never pass through cmd.exe.
+- No plan usage is reported to other programs; only tokens per turn.
+- The interactive `codex` has no `--ignore-user-config`, so there is no "Continue in terminal" for Codex.

@@ -9,6 +9,8 @@ public sealed class ChatRequest
 {
     public string? Scan { get; set; }
     public string FindingId { get; set; } = "";
+    /// <summary><see cref="Core.Claude.Agents"/>: claude (default) or codex.</summary>
+    public string? Agent { get; set; }
     /// <summary><c>ask</c> (free text), <c>quick</c> or <c>deep</c> analysis.</summary>
     public string Mode { get; set; } = "ask";
     public string? Text { get; set; }
@@ -17,7 +19,9 @@ public sealed class ChatRequest
 
 public sealed class ChatDto
 {
-    public ClaudeInfo Claude { get; set; } = new();
+    public List<AgentInfo> Agents { get; set; } = [];
+    /// <summary>The agent this finding's conversation is with, if it has one.</summary>
+    public string? Agent { get; set; }
     public string FindingId { get; set; } = "";
     public bool Running { get; set; }
     /// <summary>The finding another chat is running for, if any (one run at a time).</summary>
@@ -35,9 +39,10 @@ public sealed class ChatEventDto
 }
 
 /// <summary>
-/// Claude about one suggestion: a quick or deep look, or the user's own questions, as one Claude session per finding
-/// (follow-ups resume it). Same isolation as the scan analysis (<see cref="ClaudeProcess"/>). One run at a time and
-/// never next to an analysis, so two MCP servers don't write the notes file at once. Chats live in memory only.
+/// An agent (Claude Code or Codex) about one suggestion: a quick or deep look, or the user's own questions, as one
+/// session per finding (follow-ups resume it; switching the agent starts a new session and keeps the conversation on
+/// screen). Same isolation as the scan analysis (<see cref="AgentCli"/>). One run at a time and never next to an
+/// analysis, so two MCP servers don't write the notes file at once. Chats live in memory only.
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jobs)
@@ -47,27 +52,32 @@ internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jo
 
     private sealed class Session
     {
-        public string SessionId = Guid.NewGuid().ToString();
+        public string Agent = Agents.Claude;
+        /// <summary>Claude: set up front. Codex: the thread id from its first event.</summary>
+        public string? SessionId;
         public string ScanId = "";
         public bool Started;
         public DateTimeOffset LastUsed;
-        public readonly List<AnalysisEvent> Events = [];
+        public List<AnalysisEvent> Events = [];
     }
 
     private readonly Lock _lock = new();
     private readonly Dictionary<string, Session> _chats = new(StringComparer.Ordinal);
     private string? _running;
+    private string? _runningAgent;
     private JobObject? _job;
     private int _seq;
 
     public bool Running { get { lock (_lock) return _running is not null; } }
 
-    public ChatDto State(string findingId, ClaudeInfo info)
+    public string RunningName { get { lock (_lock) return Agents.Name(_runningAgent ?? Agents.Claude); } }
+
+    public ChatDto State(string findingId, List<AgentInfo> agents)
     {
         lock (_lock)
         {
-            var dto = new ChatDto { Claude = info, FindingId = findingId, Running = _running == findingId, BusyWith = _running };
-            if (_chats.TryGetValue(findingId, out var s) && s.ScanId.Length > 0) dto.Events = [.. s.Events];
+            var dto = new ChatDto { Agents = agents, FindingId = findingId, Running = _running == findingId, BusyWith = _running };
+            if (_chats.TryGetValue(findingId, out var s) && s.ScanId.Length > 0) { dto.Events = [.. s.Events]; dto.Agent = s.Agent; }
             return dto;
         }
     }
@@ -75,27 +85,37 @@ internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jo
     /// <returns>An error for the user, or null when the run started.</returns>
     public string? Start(string scanId, ChatRequest r, Action onFinished)
     {
+        var agent = Agents.Normalize(r.Agent);
+        var cli = AgentCli.Get(agent);
         var mode = r.Mode is "quick" or "deep" ? r.Mode : "ask";
         var text = (r.Text ?? "").Trim();
         if (mode == "ask" && text.Length == 0) return Lang.T("Write a question first", "Önce bir soru yaz");
         if (text.Length > MaxText) text = text[..MaxText];
-        if (jobs.Running && jobs.Current?.Kind == JobKind.Analysis) return Lang.T("Wait for the analysis to finish", "Analizin bitmesini bekle");
+        if (jobs.Running && jobs.Current?.Kind is JobKind.Analysis or JobKind.Update) return Lang.T("Wait for the running job to finish", "Çalışan işin bitmesini bekle");
 
         Session s;
         lock (_lock)
         {
-            if (_running is not null) return Lang.T("Claude is still answering", "Claude hâlâ yanıtlıyor");
+            if (_running is not null) return Lang.T($"{Agents.Name(_runningAgent ?? agent)} is still answering", $"{Agents.Name(_runningAgent ?? agent)} hâlâ yanıtlıyor");
             if (!_chats.TryGetValue(r.FindingId, out s!) || s.ScanId != scanId)
             {
                 // A new scan means new data: start a fresh session for it.
-                s = new Session { ScanId = scanId };
+                s = new Session { ScanId = scanId, Agent = agent };
                 _chats[r.FindingId] = s;
                 if (_chats.Count > MaxChats)
                     foreach (var old in _chats.Where(c => c.Key != r.FindingId).OrderBy(c => c.Value.LastUsed).Take(_chats.Count - MaxChats).ToList())
                         _chats.Remove(old.Key);
             }
+            else if (s.Agent != agent)
+            {
+                // Another agent: its own new session; the conversation so far stays on screen.
+                s = new Session { ScanId = scanId, Agent = agent, Events = s.Events };
+                _chats[r.FindingId] = s;
+            }
+            if (s.SessionId is null && cli.PresetSessionId) s.SessionId = Guid.NewGuid().ToString();
             s.LastUsed = DateTimeOffset.UtcNow;
             _running = r.FindingId;
+            _runningAgent = agent;
         }
 
         var shown = mode switch
@@ -104,7 +124,7 @@ internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jo
             "deep" => Lang.T("Deep analysis", "Derin analiz"),
             _ => text,
         };
-        Add(r.FindingId, s, new AnalysisEvent { Kind = AnalysisEventKind.User, Text = shown, Subtype = mode });
+        Add(r.FindingId, s, new AnalysisEvent { Kind = AnalysisEventKind.User, Text = shown, Subtype = mode, Agent = agent });
         var message = Message(r.FindingId, mode, text, first: !s.Started);
         var resume = s.Started;
         s.Started = true;
@@ -114,15 +134,15 @@ internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jo
         {
             try
             {
-                var work = Path.Combine(home, "claude-work");
-                Directory.CreateDirectory(work);
-                var prompt = ClaudeProcess.WritePrompt(work, "chat");
-                var mcp = ClaudeProcess.WriteMcpConfig(work, "ferahla-mcp-chat.json", home, scanId);
-                var args = ClaudeProcess.Args(prompt, mcp, s.SessionId, resume, turns, r.Model);
-                await ClaudeProcess.Run(work, args, message, ev =>
+                await cli.Run(new AgentRun
+                {
+                    WorkDir = cli.WorkDir(home), PromptName = "chat", Home = home, ScanId = scanId, SessionId = s.SessionId,
+                    Resume = resume, MaxTurns = turns, Model = r.Model, Message = message,
+                }, ev =>
                 {
                     analysis.RecordUsage(ev);
-                    if (ev.Kind is AnalysisEventKind.RateLimit or AnalysisEventKind.Thinking) return;
+                    if (ev.Kind == AnalysisEventKind.Init && ev.SessionId is { } sid) lock (_lock) s.SessionId = sid;
+                    if (ev.Kind is AnalysisEventKind.RateLimit or AnalysisEventKind.Thinking or AnalysisEventKind.Init) return;
                     Add(r.FindingId, s, ev);
                 }, j => { lock (_lock) _job = j; }, CancellationToken.None);
             }
@@ -130,11 +150,11 @@ internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jo
             {
                 Add(r.FindingId, s, new AnalysisEvent { Kind = AnalysisEventKind.Error, Text = ex.Message });
                 // A failed first run leaves no usable session; the next message starts a new one.
-                if (!resume) lock (_lock) { s.SessionId = Guid.NewGuid().ToString(); s.Started = false; }
+                if (!resume) lock (_lock) { s.SessionId = cli.PresetSessionId ? Guid.NewGuid().ToString() : null; s.Started = false; }
             }
             finally
             {
-                lock (_lock) { _running = null; _job = null; }
+                lock (_lock) { _running = null; _runningAgent = null; _job = null; }
                 hub.Publish("chat", new ChatEventDto { FindingId = r.FindingId, Event = new AnalysisEvent { Kind = AnalysisEventKind.Result, Subtype = "finished", Seq = Interlocked.Increment(ref _seq) }, Done = true }, AnalysisJson.Web.ChatEventDto);
                 onFinished();
             }
@@ -155,13 +175,16 @@ internal sealed class Chat(string home, EventHub hub, Analysis analysis, Jobs jo
     private void Add(string findingId, Session s, AnalysisEvent ev)
     {
         ev.Seq = Interlocked.Increment(ref _seq);
+        // Which agent wrote each reply, for the labels in the drawer.
+        if (ev.Kind is AnalysisEventKind.Text or AnalysisEventKind.Note or AnalysisEventKind.Tool) ev.Agent ??= s.Agent;
         // Live tabs get every streamed piece; the kept history joins them into one text event per reply.
         hub.Publish("chat", new ChatEventDto { FindingId = findingId, Event = ev }, AnalysisJson.Web.ChatEventDto);
         lock (_lock)
         {
             if (ev.Kind == AnalysisEventKind.Text && s.Events.Count > 0 && s.Events[^1] is { Kind: AnalysisEventKind.Text } last)
-                s.Events[^1] = new AnalysisEvent { Kind = AnalysisEventKind.Text, Seq = ev.Seq, Text = last.Text + ev.Text };
+                s.Events[^1] = new AnalysisEvent { Kind = AnalysisEventKind.Text, Seq = ev.Seq, Text = last.Text + ev.Text, Agent = last.Agent };
             else if (s.Events.Count < 2000) s.Events.Add(ev);
+            // Which agent wrote each reply, for the labels in the drawer.
         }
     }
 

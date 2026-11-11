@@ -73,13 +73,13 @@ public class StreamParserTests
     [InlineData("chat", "tr")]
     public void Prompts_are_embedded_in_the_main_assembly(string name, string lang) =>
         // "analyze.tr.md" once landed in a "tr" satellite assembly (culture detection); the run then failed.
-        Assert.Contains("mcp__ferahla__", Ferahla.Server.ClaudeProcess.Prompt(name, lang));
+        Assert.Contains("mcp__ferahla__", Ferahla.Server.AgentCli.Prompt(name, lang));
 
     [Fact]
     public void Runs_stay_isolated_and_follow_ups_resume_the_session()
     {
-        var first = Ferahla.Server.ClaudeProcess.Args("p.md", "m.json", "sid", resume: false, 15, "haiku");
-        var next = Ferahla.Server.ClaudeProcess.Args("p.md", "m.json", "sid", resume: true, 500, "bad model; rm");
+        var first = Ferahla.Server.ClaudeCli.Args("p.md", "m.json", "sid", resume: false, 15, "haiku");
+        var next = Ferahla.Server.ClaudeCli.Args("p.md", "m.json", "sid", resume: true, 500, "bad model; rm");
         foreach (var a in new[] { first, next })
         {
             Assert.Equal("", a[a.IndexOf("--tools") + 1]);
@@ -159,7 +159,7 @@ public sealed class McpToolTests : IDisposable
     private readonly TempTree _t = new(outsideTemp: true);
     public void Dispose() => _t.Dispose();
 
-    private string Setup()
+    private string Setup(string? agent = null)
     {
         var home = _t.Dir("home");
         _t.File("work\\app\\package.json", 2);
@@ -167,8 +167,20 @@ public sealed class McpToolTests : IDisposable
         var root = _t.P("work");
         var store = new Storage.SnapshotStore(home);
         Windows.Scanning.ScanService.Run(Core.PathUtil.Normalize(root), store, Windows.SystemInfo.KnownFolders());
-        Session.Init(home, null);
+        Session.Init(home, null, agent);
         return home;
+    }
+
+    [Theory]
+    [InlineData("codex", "codex")]
+    [InlineData("claude", "claude")]
+    [InlineData("unknown", "claude")]
+    public void Notes_are_signed_by_the_agent_that_started_the_server(string agent, string source)
+    {
+        var home = Setup(agent);
+        var f = Assert.Single(Tools.Findings(null, "build", 0, 10, 0).Findings);
+        Assert.True(Tools.Note(f.Id, "Sample note.", "remove").Saved);
+        Assert.Equal(source, new NoteStore(home).Load().Notes[f.Id].Source);
     }
 
     [Fact]

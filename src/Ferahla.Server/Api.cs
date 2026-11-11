@@ -96,9 +96,9 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         }));
 
         // ---- Claude analysis (optional; Ferahla works fully without it) ----
-        app.MapGet("/api/analysis", async ctx => await Json(ctx, analysis.State(await analysis.InfoAsync()), AnalysisJson.Web.AnalysisDto));
+        app.MapGet("/api/analysis", async ctx => await Json(ctx, analysis.State(await analysis.AllInfoAsync()), AnalysisJson.Web.AnalysisDto));
         app.MapPost("/api/analysis/refresh", ctx => Body(ctx, ApiJson.Web.OkDto, async _ =>
-            await Json(ctx, analysis.State(await analysis.InfoAsync(refresh: true)), AnalysisJson.Web.AnalysisDto)));
+            await Json(ctx, analysis.State(await analysis.AllInfoAsync(refresh: true)), AnalysisJson.Web.AnalysisDto)));
         app.MapPost("/api/analysis/start", ctx => Body(ctx, AnalysisJson.Default.AnalysisRequest, r => StartAnalysis(ctx, r)));
         app.MapPost("/api/analysis/stop", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = analysis.Stop() }, ApiJson.Web.OkDto)));
         app.MapPost("/api/analysis/terminal", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = analysis.OpenTerminal() }, ApiJson.Web.OkDto)));
@@ -106,7 +106,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         {
             string id = ctx.Request.Query["finding"].ToString();
             if (!NoteStore.IsFindingId(id)) { await Error(ctx, 400, "not a finding id"); return; }
-            await Json(ctx, chat.State(id, await analysis.InfoAsync()), AnalysisJson.Web.ChatDto);
+            await Json(ctx, chat.State(id, await analysis.AllInfoAsync()), AnalysisJson.Web.ChatDto);
         });
         app.MapPost("/api/chat/send", ctx => Body(ctx, AnalysisJson.Default.ChatRequest, r => SendChat(ctx, r)));
         app.MapPost("/api/chat/stop", ctx => Body(ctx, ApiJson.Web.OkDto, _ => Json(ctx, new OkDto { Ok = chat.Stop() }, ApiJson.Web.OkDto)));
@@ -196,7 +196,7 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         var u = updates.State();
         if (u.Available is null) return Error(ctx, 404, Lang.T("No update available", "Güncelleme yok"));
         if (!u.CanInstall) return Error(ctx, 409, Lang.T("This copy can't update itself; download it from GitHub", "Bu kopya kendini güncelleyemiyor; GitHub'dan indir"));
-        if (chat.Running) return Error(ctx, 409, Lang.T("Wait for Claude to finish", "Claude'un bitirmesini bekle"));
+        if (chat.Running) return Error(ctx, 409, Lang.T($"Wait for {chat.RunningName} to finish", $"{chat.RunningName} bitirene kadar bekle"));
         return Started(ctx, jobs.TryStart(JobKind.Update, u.Available.Version, false,
             ct => updates.InstallAsync((done, total) => jobs.Update(s => { s.DoneBytes = done; s.TotalBytes = total; s.Done = done >= total ? 1 : 0; s.Total = 1; }), ct),
             () =>
@@ -258,12 +258,19 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
         }, () => { state.InvalidateFindings(); hub.Changed("quarantine"); }, out var status), status);
     }
 
+    /// <summary>Why the agent can't run now (not installed, not logged in), or null.</summary>
+    private async Task<string?> AgentProblem(string? agent, bool refresh)
+    {
+        var info = await analysis.InfoAsync(agent, refresh);
+        if (!info.Installed) return Lang.T($"{info.Name} is not installed", $"{info.Name} kurulu değil");
+        if (!info.LoggedIn) return Lang.T($"{info.Name} is not logged in", $"{info.Name} oturumu açık değil");
+        return null;
+    }
+
     private async Task SendChat(HttpContext ctx, ChatRequest r)
     {
         if (!NoteStore.IsFindingId(r.FindingId)) { await Error(ctx, 400, "not a finding id"); return; }
-        var info = await analysis.InfoAsync();
-        if (!info.Installed) { await Error(ctx, 400, Lang.T("Claude Code is not installed", "Claude Code kurulu değil")); return; }
-        if (!info.LoggedIn) { await Error(ctx, 400, Lang.T("Claude Code is not logged in", "Claude Code'da oturum açılmamış")); return; }
+        if (await AgentProblem(r.Agent, refresh: false) is { } problem0) { await Error(ctx, 400, problem0); return; }
         Snapshot snap;
         try { snap = state.Scan(r.Scan).Snap; }
         catch (FileNotFoundException ex) { await Error(ctx, 404, ex.Message); return; }
@@ -274,10 +281,8 @@ internal sealed class Api(AppState state, Jobs jobs, EventHub hub, Analysis anal
 
     private async Task StartAnalysis(HttpContext ctx, AnalysisRequest r)
     {
-        var info = await analysis.InfoAsync(refresh: true);
-        if (!info.Installed) { await Error(ctx, 400, Lang.T("Claude Code is not installed", "Claude Code kurulu değil")); return; }
-        if (!info.LoggedIn) { await Error(ctx, 400, Lang.T("Claude Code is not logged in", "Claude Code'da oturum açılmamış")); return; }
-        if (chat.Running) { await Error(ctx, 409, Lang.T("Wait for Claude to finish answering", "Claude'un yanıtı bitirmesini bekle")); return; }
+        if (await AgentProblem(r.Agent, refresh: true) is { } problem0) { await Error(ctx, 400, problem0); return; }
+        if (chat.Running) { await Error(ctx, 409, Lang.T($"Wait for {chat.RunningName} to finish answering", $"{chat.RunningName} yanıtı bitirene kadar bekle")); return; }
         Snapshot snap;
         try { snap = state.Scan(r.Scan).Snap; }
         catch (FileNotFoundException ex) { await Error(ctx, 404, ex.Message); return; }

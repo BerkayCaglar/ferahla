@@ -15,20 +15,28 @@ Ferahla runs entirely on your PC.
   - `scans\`: one compressed snapshot per scan (folder names, sizes, dates, notable file names) and a small summary;
   - `quarantine\` (and a hidden `X:\.ferahla\quarantine` on other drives): moved items and their manifests;
   - `notes\notes.json`: notes on findings, yours and Claude's;
-  - `claude-work\`, `claude-usage.json`: only if you use the Claude analysis (see below);
+  - `claude-work\`, `codex-work\`, `claude-usage.json`: only if you use the AI analysis (see below);
   - `ui.json`: the address and key of the running window, while it runs;
   - `update.json`: whether to check for updates.
   Delete the folder to remove everything. Uninstalling is deleting `ferahla.exe`.
 - **The HTML report** contains your file paths. It goes where you save it and nowhere else; look before you share it.
 
-## Claude analysis (optional)
+## AI analysis: Claude Code or Codex (optional)
 
-Only if you start it. Ferahla then runs **your own** Claude Code installation, logged in to **your own** Claude
-account, and the analysis is subject to Anthropic's terms and privacy policy for that account.
+Only if you start it. Ferahla then runs **your own** Claude Code or Codex installation, logged in to **your own**
+account, and the analysis is subject to that provider's terms and privacy policy for that account (Anthropic for
+Claude, OpenAI for Codex).
 
-- Claude sees what Ferahla's tools return about the scan you chose: folder and file names, paths, sizes and dates,
+- The AI sees what Ferahla's tools return about the scan you chose: folder and file names, paths, sizes and dates,
   and Ferahla's findings. Nothing else on your PC; it has no file, shell or web tools.
-- Ferahla never reads, stores or sends your Claude credentials. From `claude auth status` it reads only whether you
-  are logged in, the login method and the plan type; your e-mail and organization are ignored.
-- Your plan usage (5-hour and weekly percentages) is shown from the events Claude Code reports, and the last value is
-  kept in `claude-usage.json` so it can be shown before the next run.
+- Ferahla never reads, stores or sends your credentials. From `claude auth status` it reads only whether you are logged
+  in, the login method and the plan type; from `codex login status` only whether you are logged in and whether that is
+  with ChatGPT or an API key. Your e-mail and organization are ignored.
+- API keys in the environment (`ANTHROPIC_API_KEY`, `CODEX_API_KEY`, `OPENAI_API_KEY`) are removed for Ferahla's runs,
+  so your plan is used, not a key.
+- Claude Code and Codex keep their own session history (under `%USERPROFILE%\.claude` and `%USERPROFILE%\.codex`);
+  it contains the scan text the AI read. Ferahla's own copy of a chat lives in memory only.
+- Claude: your plan usage (5-hour and weekly percentages) is shown from the events Claude Code reports, and the last
+  value is kept in `claude-usage.json` so it can be shown before the next run. Codex reports no plan usage; Ferahla
+  shows the tokens of each run.
+- Ferahla's work folders: `claude-work\` and `codex-work\`, with the prompt and MCP settings of the last run.

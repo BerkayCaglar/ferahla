@@ -7,9 +7,9 @@ namespace Ferahla.Core.Claude;
 public enum AnalysisEventKind
 {
     [JsonStringEnumMemberName("init")] Init,
-    /// <summary>Claude is sending a request (thinking).</summary>
+    /// <summary>The agent is sending a request (thinking).</summary>
     [JsonStringEnumMemberName("thinking")] Thinking,
-    /// <summary>A piece of Claude's text, streamed.</summary>
+    /// <summary>A piece of the agent's text (streamed by Claude, whole messages from Codex).</summary>
     [JsonStringEnumMemberName("text")] Text,
     [JsonStringEnumMemberName("tool")] Tool,
     [JsonStringEnumMemberName("toolResult")] ToolResult,
@@ -36,12 +36,16 @@ public sealed class AnalysisEvent
     public string? Verdict { get; set; }
     public string? SessionId { get; set; }
     public string? Model { get; set; }
+    /// <summary>Chat: which agent (claude or codex) a message belongs to.</summary>
+    public string? Agent { get; set; }
     public List<string>? Tools { get; set; }
     public bool? McpConnected { get; set; }
     public UsageInfo? Usage { get; set; }
     public string? Subtype { get; set; }
     public int? Turns { get; set; }
     public long? DurationMs { get; set; }
+    /// <summary>Codex: input + output tokens of the run (it reports no plan usage).</summary>
+    public long? Tokens { get; set; }
 }
 
 /// <summary>Plan usage from <c>rate_limit_event</c>: shown so the user knows what an analysis costs them.</summary>
@@ -59,7 +63,7 @@ public sealed class UsageInfo
 /// Turns <c>claude -p --output-format stream-json</c> lines into UI events. Looks at <c>type</c> then the subtype;
 /// unknown events and fields are ignored, since Claude Code adds new ones over time (see docs/spikes.md 2–4).
 /// </summary>
-public sealed class StreamParser
+public sealed class StreamParser : IAgentParser
 {
     public const string ToolPrefix = "mcp__ferahla__";
     private int _seq;

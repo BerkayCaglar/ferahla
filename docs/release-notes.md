@@ -14,7 +14,7 @@ The file is not code-signed yet, so Windows SmartScreen may warn on first run: c
 - Explorer with a treemap, large files, apps and games, history and scan comparison
 - `ferahla verify`: duplicates compared byte by byte, zip archives against their folder by CRC-32
 - An overview bar that shows where all the used space goes: safe to clean, needs a look, apps, Windows and your own files
-- Optional second opinion from your own Claude Code installation: notes for every suggestion (or only the quarantined
+- Optional second opinion from your own Claude Code or Codex installation: notes for every suggestion (or only the quarantined
   ones before you delete them), and a side panel per suggestion for a quick or deep analysis and your own questions
 - Progress for quarantine, restore and delete; open any suggestion in Windows Explorer
 - Updates itself: a bar shows when a new version is out, and **Update now** swaps it in and reloads the window

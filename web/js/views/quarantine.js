@@ -6,6 +6,7 @@ import { get, ApiError } from '../api.js';
 import { outcomes } from './suggestions.js';
 import { withProgress } from '../progress.js';
 import { verdictChip } from './analysis.js';
+import { noteAuthor } from '../agents.js';
 
 let box, ctxRef, batches = [], notes = {}, picked = new Set(); // keys "batch|key"; notes by finding id
 
@@ -90,7 +91,8 @@ function batchCard(b) {
 function noteOf(e) {
   const n = e.findingId && notes[e.findingId];
   if (!n) return null;
-  return h('div.ai-note', h('div.ai-head', icon(n.source === 'claude' ? 'robot' : 'note'), h('b', n.source === 'claude' ? t('claudeSays') : t('yourNote')), verdictChip(n.verdict)), h('p', n.text));
+  const who = noteAuthor(n.source);
+  return h('div.ai-note', h('div.ai-head', icon(who.icon), h('b', who.label), verdictChip(n.verdict)), h('p', n.text));
 }
 
 /** sel: Map(batch -> keys[] | null for the whole batch) */

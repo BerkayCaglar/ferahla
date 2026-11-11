@@ -6,7 +6,7 @@ One NativeAOT executable, `ferahla.exe`, with three faces:
 |---|---|
 | `ferahla` / `ferahla ui` | Local web server on `127.0.0.1` + the browser window |
 | `ferahla <command> [--json]` | CLI: `scan`, `scans`, `findings`, `diff`, `inspect`, `verify`, `report`, `quarantine`, `restore`, `note` |
-| `ferahla mcp` | stdio MCP server, started by Claude Code during an analysis |
+| `ferahla mcp` | stdio MCP server, started by Claude Code or Codex during an analysis (`--agent` signs the notes) |
 
 ```
 src/Ferahla.Core      model, rules engine, findings, diff, quarantine plan/manifest + MoveGuard, notes,
@@ -14,12 +14,12 @@ src/Ferahla.Core      model, rules engine, findings, diff, quarantine plan/manif
 src/Ferahla.Windows   scanner (FileSystemEnumerable), known folders, registry apps, coded detectors,
                       quarantine engine (MoveFileExW, Restart Manager, private ACL), Verifier,
                       SystemActions, AppsService, JobObject
-src/Ferahla.Server    Kestrel (slim builder), Security gate, embedded web/, API, jobs + SSE, Claude analysis runner
+src/Ferahla.Server    Kestrel (slim builder), Security gate, embedded web/, API, jobs + SSE, AI agent runner (Claude, Codex)
 src/Ferahla.Mcp       MCP server (official C# SDK): read-only tools + add_note/add_notes
 src/Ferahla           the exe: System.CommandLine commands
 web/                  the UI: plain ES modules + one stylesheet, embedded into the exe
 rules/                declarative rules (JSON), embedded; see rules.md
-prompts/              Claude's instructions (en, tr), embedded
+prompts/              the AI's instructions (en, tr), embedded
 ```
 
 ## Data flow
@@ -32,8 +32,9 @@ prompts/              Claude's instructions (en, tr), embedded
    checks each against `MoveGuard`, and renames them into the same drive's quarantine with a write-ahead manifest.
 4. **The UI** talks to the server over JSON (token header) and listens to one SSE stream for job progress, analysis
    events and "data changed" signals.
-5. **Claude analysis** starts `claude -p` isolated in `claude-work`, with `ferahla mcp` as its only tool server; notes
-   land in `notes.json` and show up everywhere findings are shown.
+5. **AI analysis** starts `claude -p` (in `claude-work`) or `codex exec --json` (in `codex-work`) isolated, with
+   `ferahla mcp` as the only tool server (`Server/AgentCli.cs`); notes land in `notes.json`, signed by the agent, and
+   show up everywhere findings are shown. `StreamParser` and `CodexParser` turn both outputs into the same UI events.
 
 See [SECURITY.md](../SECURITY.md) for the threat model and [spikes.md](spikes.md) for what was measured before
 building each part.

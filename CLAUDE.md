@@ -43,10 +43,12 @@ This repo is public. The tool is developed against the owner's real machine and 
   CSP); `ServerTests.cs` pins each rule, keep them green. Handlers are plain `RequestDelegate`s with the `ApiJson`
   source-generated context (no minimal-API reflection). One job at a time (`Jobs`), progress over SSE (`EventHub`).
   `FindingsService`, `ScanService` and `PlanRunner` in Ferahla.Windows are shared by the CLI and the server.
-- Claude analysis: `src/Ferahla.Mcp/` is `ferahla mcp` (official C# MCP SDK, stdio; read-only tools + `add_note`/`add_notes`, never
+- AI analysis (Claude Code or Codex): `src/Ferahla.Mcp/` is `ferahla mcp` (official C# MCP SDK, stdio; read-only tools + `add_note`/`add_notes`, never
   a tool that moves or deletes). `Server/Analysis.cs` runs `claude -p` isolated (`--tools "" --strict-mcp-config
   --setting-sources "" --permission-prompts none`, neutral `claude-work` folder, job object, `ANTHROPIC_API_KEY`
-  removed) and stops if the init event lists any non-Ferahla tool; that isolation lives in `Server/ClaudeProcess.cs`,
+  removed) and stops if the init event lists any non-Ferahla tool; that isolation lives in `Server/AgentCli.cs` (`ClaudeCli`, `CodexCli`: `codex exec --json
+  --ignore-user-config --ignore-rules`, read-only sandbox, approvals never, skills/web/shell/apps/plugins off, keep
+  `code_mode_host` on or no MCP tool works; Codex lists no tools, so `CodexParser.Check` stops at the first foreign item),
   shared with `Server/Chat.cs` (per-suggestion drawer, `web/js/chat.js`: one session per finding, follow-ups
   `--resume`, one run at a time and never next to an analysis, kept in memory only). `Core/Claude/StreamParser.cs` turns stream-json into
   UI events (tested against `tests/fixtures/claude/`). Notes live in `<home>\notes\notes.json` (`Core/Notes`), keyed by

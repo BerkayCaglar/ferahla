@@ -6,6 +6,7 @@ import { ApiError, post } from '../api.js';
 import { verdictChip } from './analysis.js';
 import { progressView, withProgress } from '../progress.js';
 import { openChat } from '../chat.js';
+import { noteAuthor } from '../agents.js';
 
 const GROUPS = ['safe', 'regenerable', 'review', 'personal'];
 let box, ctxRef, data, bar, filter = { q: '', risk: 'all' };
@@ -148,7 +149,7 @@ function row(f) {
       h('div.i-title', catIcon(f.category), h('span', f.title), tags),
       path ? h('div.i-path', path) : null,
       f.reason ? clampable(h('div.i-reason.clamp', f.reason)) : null,
-      f.note ? h('div.ai-note', h('div.ai-head', tip(f.noteSource === 'claude' ? t('claudeSays') : t('yourNote'), f.noteSource === 'claude' ? 'robot' : 'note'), verdictChip(f.noteVerdict)), clampable(h('p.clamp', f.note))) : null,
+      f.note ? h('div.ai-note', h('div.ai-head', tip(noteAuthor(f.noteSource).label, noteAuthor(f.noteSource).icon), verdictChip(f.noteVerdict)), clampable(h('p.clamp', f.note))) : null,
       h('div.i-more', details)),
     h('div.i-size', size(f.bytes), grew ? h('small', grew) : f.action === 'info' ? h('small', t('act_info')) : null,
       h('div.row-icons',

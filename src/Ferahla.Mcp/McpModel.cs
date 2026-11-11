@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Ferahla.Mcp;
 
-// Tool results: compact, sizes in MB, so Claude spends few tokens per finding.
+// Tool results: compact, sizes in MB, so the model spends few tokens per finding.
 
 public sealed class McpSummary
 {

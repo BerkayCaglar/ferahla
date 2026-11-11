@@ -19,19 +19,19 @@ using ModelContextProtocol.Server;
 namespace Ferahla.Mcp;
 
 /// <summary>
-/// <c>ferahla mcp</c>: a stdio MCP server for Claude's analysis. Tools read the scan and add notes; there is
+/// <c>ferahla mcp</c>: a stdio MCP server for the AI analysis (Claude Code or Codex). Tools read the scan and add notes; there is
 /// deliberately no tool that moves, deletes or opens anything. stdout is the protocol; logs go to stderr.
 /// </summary>
 public static class FerahlaMcp
 {
-    public static async Task<int> RunAsync(string home, string? scanId, CancellationToken ct)
+    public static async Task<int> RunAsync(string home, string? scanId, CancellationToken ct, string? agent = null)
     {
-        Session.Init(home, scanId);
+        Session.Init(home, scanId, agent);
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
-        // Tool results reach Claude as text: readable non-ASCII letters save tokens. It is JSON-RPC, not HTML.
+        // Tool results reach the model as text: readable non-ASCII letters save tokens. It is JSON-RPC, not HTML.
         var json = new JsonSerializerOptions(McpJson.Default.Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
         builder.Services
             .AddMcpServer(o => o.ServerInfo = new() { Name = "ferahla", Version = typeof(FerahlaMcp).Assembly.GetName().Version?.ToString(3) ?? "0.0.0" })
@@ -47,10 +47,14 @@ internal static class Session
 {
     private static string _home = "";
     private static string? _scanId;
+    private static string _agent = Agents.Claude;
     private static (Snapshot Snap, SnapshotIndex Index, FindingsResult Findings, Snapshot? Prev)? _loaded;
     private static readonly Lock Gate = new();
 
-    public static void Init(string home, string? scanId) { _home = home; _scanId = scanId; _loaded = null; }
+    public static void Init(string home, string? scanId, string? agent = null) { _home = home; _scanId = scanId; _agent = Agents.Normalize(agent); _loaded = null; }
+
+    /// <summary>Who writes the notes (the note source): the agent that started this server.</summary>
+    public static string Agent => _agent;
 
     public static string Home => _home;
     public static NoteStore Notes => new(_home);
@@ -272,7 +276,7 @@ internal static class Tools
         if (!known.Contains(id)) return new McpNoteResult { FindingId = id, Saved = false, Error = "Unknown finding id; use an id from list_findings or list_quarantine." };
         if (string.IsNullOrWhiteSpace(text)) return new McpNoteResult { FindingId = id, Saved = false, Error = "Empty note." };
         var v = (verdict ?? "").Trim().ToLowerInvariant() switch { "remove" => NoteVerdict.Remove, "keep" => NoteVerdict.Keep, "check" => NoteVerdict.Check, _ => NoteVerdict.None };
-        var n = Session.Notes.Set(id, text, v, "claude", snap.Id, DateTimeOffset.UtcNow);
+        var n = Session.Notes.Set(id, text, v, Session.Agent, snap.Id, DateTimeOffset.UtcNow);
         return new McpNoteResult { FindingId = id, Saved = true, Chars = n.Text.Length };
     }
 
